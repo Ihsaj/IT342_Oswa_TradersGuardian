@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Trader's Guardian — Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet"/>
+    <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0d0d0d;
+      --nav: #111;
+      --surface: #1a1a1a;
+      --surface2: #222;
+      --border: #2a2a2a;
+      --accent: #00c8e0;
+      --accent-hover: #00b0c8;
+      --text: #f0f0f0;
+      --muted: #888;
+      --green: #00e09a;
+      --orange: #ffaa00;
+      --red: #ff4d6a;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      min-height: 100vh;
+    }
+
+    /* ── Navbar ── */
+    nav {
+      position: sticky; top: 0; z-index: 50;
+      background: var(--nav);
+      border-bottom: 1px solid var(--border);
+      height: 56px;
+      display: flex;
+      align-items: center;
+      padding: 0 28px;
+      gap: 8px;
+    }
+
+    .nav-brand {
+      display: flex; align-items: center; gap: 10px;
+      text-decoration: none; margin-right: 16px;
+    }
+
+    /* ── PNG LOGO SLOT ── */
+    .nav-logo {
+      width: 36px; height: 36px;
+      border-radius: 9px;
+      background: var(--accent);
+      overflow: hidden;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 0 14px rgba(0,200,224,0.3);
+      flex-shrink: 0;
+    }
+    /* To use your logo: replace the inner <img> src with your file path */
+
+    .nav-brand span {
+      font-family: 'Sora', sans-serif;
+      font-weight: 700; font-size: 1rem;
+      color: var(--text); white-space: nowrap;
+    }
+
+    .nav-links {
+      display: flex; align-items: center; gap: 2px; flex: 1;
+    }
+
+    .nav-link {
+      display: flex; align-items: center; gap: 7px;
+      padding: 7px 14px;
+      border-radius: 8px;
+      font-size: 0.87rem; font-weight: 500;
+      color: var(--muted);
+      text-decoration: none;
+      transition: color 0.2s, background 0.2s;
+      white-space: nowrap;
+    }
+    .nav-link svg { width: 15px; height: 15px; flex-shrink: 0; }
+    .nav-link:hover { color: var(--text); background: rgba(255,255,255,0.05); }
+    .nav-link.active {
+      background: var(--accent);
+      color: #0d0d0d; font-weight: 600;
+    }
+    .nav-link.active svg { stroke: #0d0d0d; }
+
+    .nav-logout {
+      margin-left: auto;
+      display: flex; align-items: center; gap: 7px;
+      padding: 7px 14px;
+      font-size: 0.87rem; color: var(--muted);
+      background: none; border: none; cursor: pointer;
+      border-radius: 8px;
+      transition: color 0.2s, background 0.2s;
+      font-family: 'DM Sans', sans-serif;
+    }
+    .nav-logout svg { width: 16px; height: 16px; }
+    .nav-logout:hover { color: var(--text); background: rgba(255,255,255,0.05); }
+
+    /* ── Main ── */
+    main {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 40px 28px 60px;
+      display: flex; flex-direction: column; gap: 24px;
+      animation: fadeUp 0.4s ease both;
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(14px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .page-header {
+      display: flex; align-items: flex-start; justify-content: space-between;
+    }
+    .page-header h1 {
+      font-family: 'Sora', sans-serif;
+      font-size: 1.9rem; font-weight: 700; letter-spacing: -0.5px;
+    }
+    .page-header p { color: var(--muted); font-size: 0.875rem; margin-top: 4px; }
+
+    .btn-primary {
+      display: flex; align-items: center; gap: 8px;
+      background: var(--accent); color: #0d0d0d;
+      font-family: 'Sora', sans-serif; font-weight: 700; font-size: 0.875rem;
+      border: none; border-radius: 8px;
+      padding: 11px 20px; cursor: pointer;
+      transition: background 0.2s, box-shadow 0.2s;
+      white-space: nowrap;
+    }
+    .btn-primary svg { width: 16px; height: 16px; stroke: #0d0d0d; }
+    .btn-primary:hover { background: var(--accent-hover); box-shadow: 0 0 18px rgba(0,200,224,0.3); }
+
+    /* ── Cards ── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 28px;
+    }
+
+    .card-title {
+      display: flex; align-items: center; gap: 10px;
+      font-family: 'Sora', sans-serif; font-weight: 700; font-size: 1.05rem;
+      margin-bottom: 24px;
+    }
+    .card-title svg { width: 20px; height: 20px; stroke: var(--accent); flex-shrink: 0; }
+
+    /* Account Summary */
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 24px;
+      margin-bottom: 24px;
+    }
+
+    .summary-item label {
+      font-size: 0.78rem; color: var(--muted);
+      display: block; margin-bottom: 6px;
+    }
+    .summary-item .val {
+      font-family: 'Sora', sans-serif; font-size: 1.5rem; font-weight: 700;
+    }
+    .val.white  { color: var(--text); }
+    .val.cyan   { color: var(--accent); }
+    .val.orange { color: var(--orange); }
+
+    .progress-row {
+      display: flex; justify-content: space-between;
+      font-size: 0.78rem; color: var(--muted); margin-bottom: 8px;
+    }
+    .progress-track {
+      width: 100%; height: 6px;
+      background: var(--surface2);
+      border-radius: 99px; overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%; border-radius: 99px;
+      background: var(--accent);
+      width: 0%;
+      transition: width 0.6s ease;
+    }
+
+    /* Quick Stats */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+    }
+
+    .stat-card {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 18px 20px;
+      display: flex; align-items: center; gap: 16px;
+    }
+
+    .stat-icon {
+      width: 44px; height: 44px; border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .stat-icon svg { width: 22px; height: 22px; }
+    .stat-icon.blue  { background: rgba(0,200,224,0.12); }
+    .stat-icon.blue svg  { stroke: var(--accent); }
+    .stat-icon.green { background: rgba(0,224,154,0.12); }
+    .stat-icon.green svg { stroke: var(--green); }
+    .stat-icon.red   { background: rgba(255,77,106,0.12); }
+    .stat-icon.red svg   { stroke: var(--red); }
+
+    .stat-info label { font-size: 0.78rem; color: var(--muted); display: block; margin-bottom: 4px; }
+    .stat-info .num {
+      font-family: 'Sora', sans-serif; font-size: 1.4rem; font-weight: 700;
+    }
+    .num.cyan  { color: var(--accent); }
+    .num.green { color: var(--green); }
+    .num.red   { color: var(--red); }
+
+    /* Quick Actions */
+    .actions-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+    }
+
+    .action-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 28px 24px;
+      cursor: pointer;
+      text-decoration: none;
+      display: flex; flex-direction: column; gap: 14px;
+      transition: border-color 0.2s, background 0.2s, transform 0.15s;
+    }
+    .action-card:hover {
+      border-color: var(--accent);
+      background: rgba(0,200,224,0.04);
+      transform: translateY(-2px);
+    }
+    .action-card svg { width: 26px; height: 26px; stroke: var(--accent); }
+    .action-card h3 {
+      font-family: 'Sora', sans-serif; font-size: 1rem; font-weight: 700;
+    }
+    .action-card p { font-size: 0.82rem; color: var(--muted); }
+
+    /* Help */
+    .help-btn {
+      position: fixed; bottom: 24px; right: 24px;
+      width: 36px; height: 36px; border-radius: 50%;
+      border: 1px solid var(--border);
+      background: var(--surface); color: var(--muted);
+      font-size: 1rem; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: color 0.2s, border-color 0.2s;
+    }
+    .help-btn:hover { color: var(--accent); border-color: var(--accent); }
+
+    @media (max-width: 768px) {
+      .summary-grid { grid-template-columns: repeat(2,1fr); }
+      .stats-grid, .actions-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Navbar ── -->
+<nav>
+    <a class="nav-brand" href="#">
+        <!-- ✏️ PNG LOGO SLOT — replace src with your logo file -->
+        <div class="nav-logo">
+            <img src="your-logo.png" alt="Logo" style="width:100%;height:100%;object-fit:cover;">
+        </div>
+        <span>Trader's Guardian</span>
+    </a>
+
+    <div class="nav-links">
+        <a class="nav-link active" href="#">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+                <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
+            </svg>
+            Dashboard
+        </a>
+        <a class="nav-link" href="#">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="3 17 9 11 13 15 21 7"/>
+                <polyline points="14 7 21 7 21 14"/>
+            </svg>
+            Plan Trade
+        </a>
+        <a class="nav-link" href="#">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+                <polyline points="12 6 12 12 16 14"/>
+            </svg>
+            History
+        </a>
+        <a class="nav-link" href="#">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="3"/>
+                <path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/>
+            </svg>
+            Settings
+        </a>
+    </div>
+
+    <button class="nav-logout" onclick="window.location.href='login.html'">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+            <polyline points="16 17 21 12 16 7"/>
+            <line x1="21" y1="12" x2="9" y2="12"/>
+        </svg>
+        Logout
+    </button>
+</nav>
+
+<!-- ── Main ── -->
+<main>
+
+    <!-- Page Header -->
+    <div class="page-header">
+        <div>
+            <h1>Dashboard</h1>
+            <p>Monitor your trading account and performance</p>
+        </div>
+        <button class="btn-primary">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="3 17 9 11 13 15 21 7"/>
+                <polyline points="14 7 21 7 21 14"/>
+            </svg>
+            Plan New Trade
+        </button>
+    </div>
+
+    <!-- Account Summary -->
+    <div class="card">
+        <div class="card-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="12" y1="1" x2="12" y2="23"/>
+                <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+            </svg>
+            Account Summary
+        </div>
+
+        <div class="summary-grid">
+            <div class="summary-item">
+                <label>Account Balance</label>
+                <div class="val white" id="balance">$10,000</div>
+            </div>
+            <div class="summary-item">
+                <label>Risk Per Trade</label>
+                <div class="val cyan" id="riskPct">2%</div>
+            </div>
+            <div class="summary-item">
+                <label>Daily Loss Limit</label>
+                <div class="val orange" id="lossLimit">5%</div>
+            </div>
+            <div class="summary-item">
+                <label>Current Daily Loss</label>
+                <div class="val white" id="dailyLoss">0.00%</div>
+            </div>
+        </div>
+
+        <div class="progress-row">
+            <span>Daily Loss Progress</span>
+            <span id="progressLabel">$0.00 / $500.00</span>
+        </div>
+        <div class="progress-track">
+            <div class="progress-fill" id="progressFill"></div>
+        </div>
+    </div>
+
+    <!-- Quick Statistics -->
+    <div class="card">
+        <div class="card-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="18" y1="20" x2="18" y2="10"/>
+                <line x1="12" y1="20" x2="12" y2="4"/>
+                <line x1="6"  y1="20" x2="6"  y2="14"/>
+            </svg>
+            Quick Statistics
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon blue">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="3 17 9 11 13 15 21 7"/>
+                        <polyline points="14 7 21 7 21 14"/>
+                    </svg>
+                </div>
+                <div class="stat-info">
+                    <label>Total Trades</label>
+                    <div class="num cyan" id="totalTrades">0</div>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-icon green">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                        <polyline points="22 4 12 14.01 9 11.01"/>
+                    </svg>
+                </div>
+                <div class="stat-info">
+                    <label>Approved Trades</label>
+                    <div class="num green" id="approvedTrades">0</div>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-icon red">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"/>
+                        <line x1="15" y1="9" x2="9" y2="15"/>
+                        <line x1="9" y1="9" x2="15" y2="15"/>
+                    </svg>
+                </div>
+                <div class="stat-info">
+                    <label>Disapproved Trades</label>
+                    <div class="num red" id="disapprovedTrades">0</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Action Cards -->
+    <div class="actions-grid">
+        <a class="action-card" href="#">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="3 17 9 11 13 15 21 7"/>
+                <polyline points="14 7 21 7 21 14"/>
+            </svg>
+            <h3>Plan New Trade</h3>
+            <p>Validate your next trade before execution</p>
+        </a>
+
+        <a class="action-card" href="#">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="18" y1="20" x2="18" y2="10"/>
+                <line x1="12" y1="20" x2="12" y2="4"/>
+                <line x1="6"  y1="20" x2="6"  y2="14"/>
+            </svg>
+            <h3>View History</h3>
+            <p>Review your past trading decisions</p>
+        </a>
+
+        <a class="action-card" href="#">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="5" x2="5" y2="19"/>
+                <circle cx="6.5" cy="6.5" r="2.5"/>
+                <circle cx="17.5" cy="17.5" r="2.5"/>
+            </svg>
+            <h3>Account Settings</h3>
+            <p>Configure your risk parameters</p>
+        </a>
+    </div>
+
+</main>
+
+<button class="help-btn" title="Help">?</button>
+
+<script>
+  // ── Wire up nav links (active state) ──
+  document.querySelectorAll('.nav-link').forEach(link => {
+    link.addEventListener('click', e => {
+      e.preventDefault();
+      document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+      link.classList.add('active');
+    });
+  });
+
+  // ── Dashboard data (replace with real API calls) ──
+  // Example: fetch('/api/dashboard').then(r=>r.json()).then(loadDashboard)
+  function loadDashboard(data = {}) {
+    const balance        = data.balance        ?? 10000;
+    const riskPct        = data.riskPct        ?? 2;
+    const lossLimitPct   = data.lossLimitPct   ?? 5;
+    const currentLossPct = data.currentLossPct ?? 0;
+    const totalTrades    = data.totalTrades    ?? 0;
+    const approvedTrades = data.approvedTrades ?? 0;
+    const disapproved    = data.disapprovedTrades ?? 0;
+
+    const lossLimitAmt = balance * (lossLimitPct / 100);
+    const currentLossAmt = balance * (currentLossPct / 100);
+    const progress = lossLimitAmt > 0 ? (currentLossAmt / lossLimitAmt) * 100 : 0;
+
+    document.getElementById('balance').textContent        = '$' + balance.toLocaleString();
+    document.getElementById('riskPct').textContent        = riskPct + '%';
+    document.getElementById('lossLimit').textContent      = lossLimitPct + '%';
+    document.getElementById('dailyLoss').textContent      = currentLossPct.toFixed(2) + '%';
+    document.getElementById('progressLabel').textContent  =
+      '$' + currentLossAmt.toFixed(2) + ' / $' + lossLimitAmt.toFixed(2);
+    document.getElementById('progressFill').style.width   = Math.min(progress, 100) + '%';
+    document.getElementById('totalTrades').textContent    = totalTrades;
+    document.getElementById('approvedTrades').textContent = approvedTrades;
+    document.getElementById('disapprovedTrades').textContent = disapproved;
+  }
+
+  loadDashboard();
+</script>
+</body>
+</html>
