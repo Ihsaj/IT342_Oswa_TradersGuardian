@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  ✏️ LOGO SLOT
+  This is the placeholder used in LogoBadge and NavLogoBadge.
+  To use your own logo:
+    1. Add your PNG to res/drawable/ (e.g. ic_my_logo.png)
+    2. In Components.kt, replace R.drawable.ic_logo_placeholder
+       with R.drawable.ic_my_logo in LogoBadge and NavLogoBadge
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:pathData="M3,17 L9,11 L13,15 L21,7"
+        android:strokeColor="#0D0D0D"
+        android:strokeWidth="2.5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:fillColor="@android:color/transparent"/>
+    <path
+        android:pathData="M14,7 L21,7 L21,14"
+        android:strokeColor="#0D0D0D"
+        android:strokeWidth="2.5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:fillColor="@android:color/transparent"/>
+</vector>
