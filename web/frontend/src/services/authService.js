@@ -24,12 +24,19 @@ apiClient.interceptors.request.use(
 );
 
 // Response interceptor to handle 401 and redirect to login
+// Only redirect when a stored token was rejected (e.g. expired),
+// NOT when the /auth/login or /auth/register endpoint itself returns 401.
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response && error.response.status === 401) {
-      localStorage.removeItem('authToken');
-      window.location.href = '/login';
+      const requestUrl = error.config?.url || '';
+      const isAuthEndpoint = requestUrl.includes('/auth/login') || requestUrl.includes('/auth/register');
+      if (!isAuthEndpoint) {
+        // A protected endpoint rejected the token — clear it and send user to login
+        localStorage.removeItem('authToken');
+        window.location.href = '/login';
+      }
     }
     return Promise.reject(error);
   }

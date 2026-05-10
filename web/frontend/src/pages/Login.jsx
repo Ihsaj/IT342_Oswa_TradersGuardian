@@ -214,7 +214,7 @@ export default function Login() {
       await login({ email, password });
       navigate("/dashboard");
     } catch (err) {
-      setApiError(err.response?.data?.message || "Invalid credentials. Please try again.");
+      setApiError(err.response?.data?.error || err.response?.data?.message || "Invalid credentials. Please try again.");
     }
   };
 
