@@ -1,0 +1,19 @@
+body{
+font-family:Segoe UI,Arial;
+background:#0b0f14;
+color:#e5e7eb;
+margin:0;
+}
+
+nav{
+display:flex;
+align-items:center;
+justify-content:space-between;
+background:#111827;
+padding:15px 40px;
+border-bottom:1px solid #1f2937;
+}
+
+nav img{
+height:30px;
+}
