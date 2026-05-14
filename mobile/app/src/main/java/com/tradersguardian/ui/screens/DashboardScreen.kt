@@ -4,6 +4,7 @@ import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -17,63 +18,54 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.tradersguardian.R
-import com.tradersguardian.data.model.DashboardData
-import com.tradersguardian.data.model.UiState
+import com.tradersguardian.data.model.*
 import com.tradersguardian.ui.components.*
 import com.tradersguardian.ui.theme.*
 import com.tradersguardian.viewmodel.DashboardViewModel
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DashboardScreen(
+    onNavigate: (String) -> Unit,
     onLogout: () -> Unit,
     viewModel: DashboardViewModel = viewModel()
 ) {
-    val dashboardState  by viewModel.dashboardState.collectAsState()
-    val showLogout      by viewModel.showLogoutDialog.collectAsState()
-    var selectedNav     by remember { mutableIntStateOf(0) }
+    val dashboardState by viewModel.dashboardState.collectAsState()
+    val showLogout     by viewModel.showLogoutDialog.collectAsState()
 
-    // ── Logout confirmation dialog ─────────────────────────────────────────
+    // ── Logout confirmation ────────────────────────────────────────────────
     if (showLogout) {
         Dialog(onDismissRequest = { viewModel.showLogoutDialog.value = false }) {
             Column(
                 verticalArrangement = Arrangement.spacedBy(20.dp),
                 modifier = Modifier
-                    .clip(RoundedCornerShape(16.dp))
+                    .clip(RoundedCornerShape(20.dp))
                     .background(Surface)
-                    .border(1.dp, BorderColor, RoundedCornerShape(16.dp))
+                    .border(1.dp, BorderColor, RoundedCornerShape(20.dp))
                     .padding(28.dp)
             ) {
-                // Icon
                 Box(
                     contentAlignment = Alignment.Center,
                     modifier = Modifier
-                        .size(52.dp)
+                        .size(48.dp)
                         .clip(RoundedCornerShape(12.dp))
-                        .background(ErrorRed.copy(alpha = 0.1f))
-                        .border(1.dp, ErrorRed.copy(alpha = 0.2f), RoundedCornerShape(12.dp))
+                        .background(ErrorBg)
                 ) {
                     Icon(
                         painter = painterResource(R.drawable.ic_logout),
                         contentDescription = null,
                         tint = ErrorRed,
-                        modifier = Modifier.size(24.dp)
+                        modifier = Modifier.size(22.dp)
                     )
                 }
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text("Sign out?", style = MaterialTheme.typography.titleMedium, color = TextPrimary)
                     Text(
-                        "Sign out of Trader's Guardian?",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = TextPrimary
-                    )
-                    Text(
-                        "You'll need to sign back in to access your trading account and performance data.",
+                        "You'll need to sign back in to access your account.",
                         style = MaterialTheme.typography.bodySmall,
                         color = TextMuted,
                         lineHeight = 18.sp
@@ -82,26 +74,20 @@ fun DashboardScreen(
                 HorizontalDivider(color = BorderColor)
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     TgOutlinedButton(
-                        text = "Stay Logged In",
+                        text = "Cancel",
                         onClick = { viewModel.showLogoutDialog.value = false },
                         modifier = Modifier.weight(1f)
                     )
                     Button(
                         onClick = { viewModel.logout(onLogout) },
-                        modifier = Modifier.weight(1f).height(46.dp),
-                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.weight(1f).height(48.dp),
+                        shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = ErrorRed,
-                            contentColor = Color.White
+                            contentColor   = Color.White
                         )
                     ) {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_logout),
-                            contentDescription = null,
-                            modifier = Modifier.size(15.dp)
-                        )
-                        Spacer(Modifier.width(6.dp))
-                        Text("Yes, Log Out", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+                        Text("Log Out", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -109,88 +95,73 @@ fun DashboardScreen(
     }
 
     Scaffold(
-        containerColor = BgDark,
-        topBar = {
-            // ── Navbar ─────────────────────────────────────────────────────
-            Surface(
-                color = NavDark,
-                tonalElevation = 0.dp,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .border(width = 1.dp, color = BorderColor,
-                        shape = RoundedCornerShape(0.dp))
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(56.dp)
-                        .padding(horizontal = 20.dp)
-                ) {
-                    // Logo + Brand name
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        modifier = Modifier.padding(end = 16.dp)
-                    ) {
-                        NavLogoBadge()
-                        Text(
-                            "Trader's Guardian",
-                            style = MaterialTheme.typography.titleSmall,
-                            color = TextPrimary,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-
-                    // Nav links
-                    Row(
-                        modifier = Modifier.weight(1f),
-                        horizontalArrangement = Arrangement.spacedBy(2.dp)
-                    ) {
-                        NavItems.forEachIndexed { index, item ->
-                            NavChip(
-                                label = item.label,
-                                iconRes = item.iconRes,
-                                isActive = selectedNav == index,
-                                onClick = { selectedNav = index }
-                            )
-                        }
-                    }
-
-                    // Logout
-                    TextButton(
-                        onClick = { viewModel.showLogoutDialog.value = true },
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_logout),
-                            contentDescription = "Logout",
-                            tint = TextMuted,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(Modifier.width(6.dp))
-                        Text("Logout", color = TextMuted, style = MaterialTheme.typography.bodyMedium)
-                    }
-                }
-            }
-        }
+        containerColor = BgMid,
+        topBar = { DashboardTopBar(onLogout = { viewModel.showLogoutDialog.value = true }) }
     ) { padding ->
         when (val state = dashboardState) {
             is UiState.Loading -> {
                 Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = AccentCyan)
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                        CircularProgressIndicator(color = AccentCyan, strokeWidth = 2.5.dp)
+                        Text("Loading dashboard…", color = TextMuted, style = MaterialTheme.typography.bodySmall)
+                    }
                 }
             }
             is UiState.Error -> {
                 Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                        Icon(painterResource(R.drawable.ic_x_circle), null, tint = ErrorRed, modifier = Modifier.size(40.dp))
                         Text(state.message, color = ErrorRed, style = MaterialTheme.typography.bodyMedium)
                         TgButton("Retry", onClick = { viewModel.loadDashboard() }, modifier = Modifier.width(140.dp))
                     }
                 }
             }
-            is UiState.Success -> DashboardContent(data = state.data, modifier = Modifier.padding(padding))
+            is UiState.Success -> DashboardContent(
+                data      = state.data,
+                onNavigate = onNavigate,
+                modifier  = Modifier.padding(padding)
+            )
             else -> Unit
+        }
+    }
+}
+
+// ── Top Bar ───────────────────────────────────────────────────────────────────
+
+@Composable
+private fun DashboardTopBar(onLogout: () -> Unit) {
+    Surface(
+        color         = NavBar,
+        tonalElevation= 0.dp,
+        modifier      = Modifier
+            .fillMaxWidth()
+            .border(width = 0.5.dp, color = BorderColor, shape = RoundedCornerShape(0.dp))
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxWidth()
+                .statusBarsPadding()
+                .height(56.dp)
+                .padding(horizontal = 20.dp)
+        ) {
+            NavLogoBadge()
+            Spacer(Modifier.width(10.dp))
+            Text(
+                "Trader's Guardian",
+                style = MaterialTheme.typography.titleSmall,
+                color = TextPrimary,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(Modifier.weight(1f))
+            IconButton(onClick = onLogout) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_logout),
+                    contentDescription = "Logout",
+                    tint = TextMuted,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
         }
     }
 }
@@ -198,278 +169,214 @@ fun DashboardScreen(
 // ── Dashboard content ─────────────────────────────────────────────────────────
 
 @Composable
-private fun DashboardContent(data: DashboardData, modifier: Modifier = Modifier) {
+private fun DashboardContent(
+    data: DashboardData,
+    onNavigate: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val s = data.settings
+    val t = data.stats
+
+    val balance       = s.accountBalance
+    val riskPct       = s.riskPerTrade
+    val lossLimitPct  = s.dailyLossLimit
+    val currLossPct   = s.currentDailyLoss
+    val lossLimitAmt  = balance * lossLimitPct / 100.0
+    val currLossAmt   = balance * currLossPct  / 100.0
+    val progress      = if (lossLimitAmt > 0) (currLossAmt / lossLimitAmt).toFloat().coerceIn(0f, 1f) else 0f
+
+    val animatedProgress by animateFloatAsState(
+        targetValue   = progress,
+        animationSpec = tween(900, easing = EaseOutCubic),
+        label         = "progress"
+    )
+
     Column(
-        verticalArrangement = Arrangement.spacedBy(20.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
         modifier = modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 24.dp, vertical = 32.dp)
+            .padding(horizontal = 16.dp, vertical = 20.dp)
     ) {
         // Page header
-        Row(
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column {
-                Text("Dashboard",
-                    style = MaterialTheme.typography.headlineLarge.copy(letterSpacing = (-0.5).sp),
-                    color = TextPrimary)
-                Text("Monitor your trading account and performance",
-                    style = MaterialTheme.typography.bodySmall, color = TextMuted,
-                    modifier = Modifier.padding(top = 4.dp))
-            }
-            Button(
-                onClick = { /* TODO: Plan New Trade */ },
-                shape = RoundedCornerShape(8.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = AccentCyan, contentColor = BgDark)
-            ) {
-                Icon(painterResource(R.drawable.ic_trending_up), null, modifier = Modifier.size(16.dp))
-                Spacer(Modifier.width(6.dp))
-                Text("Plan New Trade", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
-            }
+        Column {
+            Text("Dashboard", style = MaterialTheme.typography.headlineLarge.copy(letterSpacing = (-0.5).sp), color = TextPrimary)
+            Text("Monitor your trading performance", style = MaterialTheme.typography.bodySmall, color = TextMuted, modifier = Modifier.padding(top = 4.dp))
         }
 
-        // ── Account Summary Card ──────────────────────────────────────────
-        SectionCard(title = "Account Summary", iconRes = R.drawable.ic_dollar) {
-            Row(
-                horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                SummaryItem("Account Balance", "$${"%,.0f".format(data.balance)}", TextPrimary)
-                SummaryItem("Risk Per Trade",  "${data.riskPct}%",              AccentCyan)
-                SummaryItem("Daily Loss Limit","${data.lossLimitPct}%",         WarningOrange)
-                SummaryItem("Current Daily Loss", "${"%.2f".format(data.currentLossPct)}%", TextPrimary)
-            }
+        // ── Plan CTA ─────────────────────────────────────────────────────────
+        Button(
+            onClick = { onNavigate("plan-trade") },
+            modifier = Modifier.fillMaxWidth().height(50.dp),
+            shape  = RoundedCornerShape(12.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = AccentCyan, contentColor = BgDark)
+        ) {
+            Icon(painterResource(R.drawable.ic_trending_up), null, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(8.dp))
+            Text("Plan New Trade", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+        }
 
+        // ── Account Summary ───────────────────────────────────────────────────
+        TgCard {
+            SectionHeader("Account Summary", R.drawable.ic_dollar)
+
+            // 2×2 grid of stats
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                StatBadge("Account Balance", "$${"%.0f".format(balance)}", TextPrimary, Modifier.weight(1f))
+                StatBadge("Risk Per Trade", "$riskPct%", AccentCyan, Modifier.weight(1f))
+            }
+            Spacer(Modifier.height(16.dp))
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                StatBadge("Daily Limit", "$lossLimitPct%", WarningAmber, Modifier.weight(1f))
+                StatBadge("Current Loss", "${"%.2f".format(currLossPct)}%", if (progress > 0.75f) ErrorRed else TextPrimary, Modifier.weight(1f))
+            }
             Spacer(Modifier.height(20.dp))
 
-            val lossLimitAmt   = data.balance * (data.lossLimitPct / 100)
-            val currentLossAmt = data.balance * (data.currentLossPct / 100)
-            val progress       = if (lossLimitAmt > 0) (currentLossAmt / lossLimitAmt).toFloat() else 0f
-
+            // Progress bar
             Row(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
             ) {
                 Text("Daily Loss Progress", color = TextMuted, style = MaterialTheme.typography.bodySmall)
-                Text("$${"%.2f".format(currentLossAmt)} / $${"%.2f".format(lossLimitAmt)}",
-                    color = TextMuted, style = MaterialTheme.typography.bodySmall)
+                Text("$${  "%.2f".format(currLossAmt)} / $${"%.2f".format(lossLimitAmt)}", color = TextMuted, style = MaterialTheme.typography.bodySmall)
             }
-
-            val animatedProgress by animateFloatAsState(
-                targetValue = progress.coerceIn(0f, 1f),
-                animationSpec = tween(800, easing = EaseOutCubic), label = "progress"
-            )
             LinearProgressIndicator(
-                progress = { animatedProgress },
-                modifier = Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(99.dp)),
-                color = if (progress > 0.8f) ErrorRed else AccentCyan,
-                trackColor = Surface2,
-                strokeCap = StrokeCap.Round
+                progress      = { animatedProgress },
+                modifier      = Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(99.dp)),
+                color         = when {
+                    progress > 0.8f -> ErrorRed
+                    progress > 0.5f -> WarningAmber
+                    else            -> AccentCyan
+                },
+                trackColor    = Surface2,
+                strokeCap     = StrokeCap.Round
             )
+            if (progress > 0.8f) {
+                Spacer(Modifier.height(10.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(ErrorBg)
+                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                ) {
+                    Icon(painterResource(R.drawable.ic_x_circle), null, tint = ErrorRed, modifier = Modifier.size(14.dp))
+                    Text("Approaching daily loss limit", style = MaterialTheme.typography.bodySmall, color = ErrorRed)
+                }
+            }
         }
 
-        // ── Quick Statistics Card ─────────────────────────────────────────
-        SectionCard(title = "Quick Statistics", iconRes = R.drawable.ic_bar_chart) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                StatChip(
-                    label = "Total Trades",
-                    value = "${data.totalTrades}",
-                    iconRes = R.drawable.ic_trending_up,
-                    iconBg = AccentCyan.copy(alpha = 0.12f),
-                    iconTint = AccentCyan,
-                    valueColor = AccentCyan,
-                    modifier = Modifier.weight(1f)
+        // ── Quick Statistics ──────────────────────────────────────────────────
+        TgCard {
+            SectionHeader("Quick Statistics", R.drawable.ic_bar_chart)
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                StatRow(
+                    label     = "Total Trades",
+                    value     = "${t.totalTrades}",
+                    iconRes   = R.drawable.ic_trending_up,
+                    iconBg    = AccentCyan.copy(0.12f),
+                    iconTint  = AccentCyan,
+                    valueColor= AccentCyan
                 )
-                StatChip(
-                    label = "Approved",
-                    value = "${data.approvedTrades}",
-                    iconRes = R.drawable.ic_check_circle,
-                    iconBg = SuccessGreen.copy(alpha = 0.12f),
-                    iconTint = SuccessGreen,
-                    valueColor = SuccessGreen,
-                    modifier = Modifier.weight(1f)
+                HorizontalDivider(color = BorderColor, thickness = 0.5.dp)
+                StatRow(
+                    label     = "Approved",
+                    value     = "${t.approvedTrades}",
+                    iconRes   = R.drawable.ic_check_circle,
+                    iconBg    = SuccessBg,
+                    iconTint  = SuccessGreen,
+                    valueColor= SuccessGreen
                 )
-                StatChip(
-                    label = "Disapproved",
-                    value = "${data.disapprovedTrades}",
-                    iconRes = R.drawable.ic_x_circle,
-                    iconBg = ErrorRed.copy(alpha = 0.12f),
-                    iconTint = ErrorRed,
-                    valueColor = ErrorRed,
-                    modifier = Modifier.weight(1f)
+                HorizontalDivider(color = BorderColor, thickness = 0.5.dp)
+                StatRow(
+                    label     = "Disapproved",
+                    value     = "${t.disapprovedTrades}",
+                    iconRes   = R.drawable.ic_x_circle,
+                    iconBg    = ErrorBg,
+                    iconTint  = ErrorRed,
+                    valueColor= ErrorRed
                 )
             }
         }
 
-        // ── Quick Action Cards ────────────────────────────────────────────
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            ActionCard(
-                title = "Plan New Trade",
-                subtitle = "Validate your next trade before execution",
-                iconRes = R.drawable.ic_trending_up,
-                onClick = { /* TODO */ },
-                modifier = Modifier.weight(1f)
-            )
-            ActionCard(
-                title = "View History",
-                subtitle = "Review your past trading decisions",
-                iconRes = R.drawable.ic_bar_chart,
-                onClick = { /* TODO */ },
-                modifier = Modifier.weight(1f)
-            )
-            ActionCard(
-                title = "Account Settings",
-                subtitle = "Configure your risk parameters",
-                iconRes = R.drawable.ic_settings,
-                onClick = { /* TODO */ },
-                modifier = Modifier.weight(1f)
-            )
+        // ── Quick Actions ─────────────────────────────────────────────────────
+        Text("Quick Actions", style = MaterialTheme.typography.titleSmall, color = TextSecondary)
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            ActionCard("Plan New Trade",    "Validate your trade before entering",    R.drawable.ic_trending_up, AccentCyan)  { onNavigate("plan-trade") }
+            ActionCard("Trade History",     "Review your past trading decisions",     R.drawable.ic_clock,       PendingBlue) { onNavigate("history") }
+            ActionCard("Account Settings",  "Configure your risk parameters",         R.drawable.ic_settings,    WarningAmber){ onNavigate("settings") }
         }
+
+        // Bottom spacer for nav bar
+        Spacer(Modifier.height(16.dp))
     }
 }
 
-// ── Reusable sub-components ───────────────────────────────────────────────────
+// ── Stat row ──────────────────────────────────────────────────────────────────
 
 @Composable
-private fun SectionCard(
-    title: String,
-    iconRes: Int,
-    content: @Composable ColumnScope.() -> Unit
+private fun StatRow(
+    label: String, value: String,
+    iconRes: Int, iconBg: Color, iconTint: Color, valueColor: Color
 ) {
-    Column(
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier.size(38.dp).clip(RoundedCornerShape(10.dp)).background(iconBg)
+        ) {
+            Icon(painterResource(iconRes), null, tint = iconTint, modifier = Modifier.size(20.dp))
+        }
+        Text(label, style = MaterialTheme.typography.bodyMedium, color = TextMuted, modifier = Modifier.weight(1f))
+        Text(value, style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold), color = valueColor)
+    }
+}
+
+// ── Action card ───────────────────────────────────────────────────────────────
+
+@Composable
+private fun ActionCard(
+    title: String, subtitle: String,
+    iconRes: Int, iconTint: Color,
+    onClick: () -> Unit
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(14.dp))
             .background(Surface)
             .border(1.dp, BorderColor, RoundedCornerShape(14.dp))
-            .padding(24.dp)
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-            modifier = Modifier.padding(bottom = 20.dp)
-        ) {
-            Icon(painterResource(iconRes), null, tint = AccentCyan, modifier = Modifier.size(20.dp))
-            Text(title, style = MaterialTheme.typography.titleMedium, color = TextPrimary)
-        }
-        content()
-    }
-}
-
-@Composable
-private fun SummaryItem(label: String, value: String, valueColor: Color) {
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text(label, style = MaterialTheme.typography.bodySmall, color = TextMuted)
-        Text(value,
-            style = MaterialTheme.typography.headlineMedium.copy(
-                fontSize = 22.sp, fontWeight = FontWeight.Bold
-            ),
-            color = valueColor
-        )
-    }
-}
-
-@Composable
-private fun StatChip(
-    label: String,
-    value: String,
-    iconRes: Int,
-    iconBg: Color,
-    iconTint: Color,
-    valueColor: Color,
-    modifier: Modifier = Modifier
-) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(14.dp),
-        modifier = modifier
-            .clip(RoundedCornerShape(10.dp))
-            .background(Surface2)
-            .border(1.dp, BorderColor, RoundedCornerShape(10.dp))
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onClick
+            )
             .padding(16.dp)
     ) {
         Box(
             contentAlignment = Alignment.Center,
             modifier = Modifier
                 .size(44.dp)
-                .clip(RoundedCornerShape(10.dp))
-                .background(iconBg)
+                .clip(RoundedCornerShape(12.dp))
+                .background(iconTint.copy(alpha = 0.12f))
         ) {
             Icon(painterResource(iconRes), null, tint = iconTint, modifier = Modifier.size(22.dp))
         }
-        Column {
-            Text(label, style = MaterialTheme.typography.bodySmall, color = TextMuted)
-            Text(value,
-                style = MaterialTheme.typography.headlineMedium.copy(
-                    fontSize = 22.sp, fontWeight = FontWeight.Bold
-                ),
-                color = valueColor
-            )
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+            Text(title, style = MaterialTheme.typography.titleSmall, color = TextPrimary)
+            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = TextMuted)
         }
-    }
-}
-
-@Composable
-private fun ActionCard(
-    title: String,
-    subtitle: String,
-    iconRes: Int,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Column(
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-        modifier = modifier
-            .clip(RoundedCornerShape(14.dp))
-            .background(Surface)
-            .border(1.dp, BorderColor, RoundedCornerShape(14.dp))
-            .clickable(onClick = onClick)
-            .padding(24.dp)
-    ) {
-        Icon(painterResource(iconRes), null, tint = AccentCyan, modifier = Modifier.size(26.dp))
-        Text(title, style = MaterialTheme.typography.titleSmall, color = TextPrimary)
-        Text(subtitle, style = MaterialTheme.typography.bodySmall, color = TextMuted, lineHeight = 16.sp)
-    }
-}
-
-@Composable
-private fun NavChip(label: String, iconRes: Int, isActive: Boolean, onClick: () -> Unit) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
-        modifier = Modifier
-            .clip(RoundedCornerShape(8.dp))
-            .background(if (isActive) AccentCyan else Color.Transparent)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 7.dp)
-    ) {
         Icon(
-            painterResource(iconRes), null,
-            tint = if (isActive) BgDark else TextMuted,
-            modifier = Modifier.size(15.dp)
-        )
-        Text(
-            label,
-            style = MaterialTheme.typography.bodySmall.copy(fontWeight = if (isActive) FontWeight.SemiBold else FontWeight.Normal),
-            color = if (isActive) BgDark else TextMuted
+            painterResource(R.drawable.ic_chevron_right),
+            contentDescription = null,
+            tint = TextDisabled,
+            modifier = Modifier.size(18.dp)
         )
     }
 }
-
-// Nav items data
-private data class NavItem(val label: String, val iconRes: Int)
-private val NavItems = listOf(
-    NavItem("Dashboard", R.drawable.ic_grid),
-    NavItem("Plan Trade", R.drawable.ic_trending_up),
-    NavItem("History",    R.drawable.ic_clock),
-    NavItem("Settings",   R.drawable.ic_settings),
-)

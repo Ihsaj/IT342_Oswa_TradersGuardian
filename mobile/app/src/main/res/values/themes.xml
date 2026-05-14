@@ -1,9 +1,15 @@
-<resources xmlns:tools="http://schemas.android.com/tools">
-    <!-- Base application theme. -->
-    <style name="Base.Theme.TradersGuardian" parent="Theme.Material3.DayNight.NoActionBar">
-        <!-- Customize your light theme here. -->
-        <!-- <item name="colorPrimary">@color/my_light_primary</item> -->
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+        Base application theme.
+        Compose handles its own theming, so this XML theme is kept minimal —
+        just status bar / navigation bar colours and the parent for the activity window.
+    -->
+    <style name="Theme.TradersGuardian" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <!-- Status bar transparent; Compose draws into it via enableEdgeToEdge() -->
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@color/bg_dark</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowBackground">@color/bg_dark</item>
     </style>
-
-    <style name="Theme.TradersGuardian" parent="Base.Theme.TradersGuardian" />
 </resources>

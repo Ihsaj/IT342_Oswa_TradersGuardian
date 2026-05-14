@@ -1,5 +1,26 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Base background -->
+    <color name="bg_dark">#FF0D1117</color>
+    <color name="surface">#FF161B22</color>
+    <color name="surface2">#FF1C2128</color>
+
+    <!-- Text -->
+    <color name="text_primary">#FFE6EDF3</color>
+    <color name="text_muted">#FF8B949E</color>
+
+    <!-- Accent -->
+    <color name="accent_cyan">#FF00D4FF</color>
+
+    <!-- Status -->
+    <color name="success_green">#FF3FB950</color>
+    <color name="error_red">#FFF85149</color>
+    <color name="warning_amber">#FFD29922</color>
+
+    <!-- Border -->
+    <color name="border_color">#FF30363D</color>
+
+    <!-- Legacy -->
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
 </resources>
