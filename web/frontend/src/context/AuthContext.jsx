@@ -3,39 +3,48 @@ import authService from '../services/authService';
 
 const AuthContext = createContext();
 
+/**
+ * Decode the JWT payload locally (base64 only — no signature verification).
+ * The backend verifies the signature on every real API call.
+ * Returns the payload object, or null if the token is malformed.
+ */
+function decodeJwtPayload(token) {
+  try {
+    const base64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+    return JSON.parse(atob(base64));
+  } catch {
+    return null;
+  }
+}
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
-  // Check if user is already logged in on component mount
+  // On mount: restore session from the stored token WITHOUT a backend call.
+  // We only need the email from the token payload — the backend validates
+  // the signature on every real API request anyway.
   useEffect(() => {
     const token = localStorage.getItem('authToken');
     if (token) {
-      fetchUserData();
-    } else {
-      setLoading(false);
+      const payload = decodeJwtPayload(token);
+      if (payload && payload.sub) {
+        // Token is structurally valid — restore the session immediately.
+        setUser({ email: payload.sub });
+        setIsAuthenticated(true);
+        // Optionally enrich the user object in the background (non-blocking).
+        authService.me()
+          .then(res => setUser(res.data.data))
+          .catch(() => { /* ignore — token is still valid, user stays logged in */ });
+      } else {
+        // Malformed token — clear it.
+        localStorage.removeItem('authToken');
+      }
     }
+    setLoading(false);
   }, []);
-
-  const fetchUserData = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const response = await authService.me();
-      setUser(response.data.data);
-      setIsAuthenticated(true);
-    } catch (err) {
-      console.error('Error fetching user data:', err);
-      localStorage.removeItem('authToken');
-      setUser(null);
-      setIsAuthenticated(false);
-      setError(err.response?.data?.message || 'Failed to fetch user data');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const register = async (userData) => {
     try {
@@ -58,13 +67,20 @@ export const AuthProvider = ({ children }) => {
       setError(null);
       const response = await authService.login(credentials);
       const { data } = response.data;
-      
+
       // Store token
       localStorage.setItem('authToken', data.token);
-      
-      // Fetch user data after login
-      await fetchUserData();
-      
+
+      // Decode locally so we're never dependent on a second network call
+      const payload = decodeJwtPayload(data.token);
+      setUser({ email: payload?.sub || credentials.email });
+      setIsAuthenticated(true);
+
+      // Fetch full user profile in the background
+      authService.me()
+        .then(res => setUser(res.data.data))
+        .catch(() => { /* non-critical */ });
+
       return response.data;
     } catch (err) {
       const errorMessage = err.response?.data?.message || 'Login failed';
@@ -92,7 +108,6 @@ export const AuthProvider = ({ children }) => {
     register,
     login,
     logout,
-    fetchUserData,
   };
 
   return (

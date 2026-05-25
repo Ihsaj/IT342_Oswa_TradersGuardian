@@ -1,15 +1,16 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { useSettings } from "../context/SettingsContext";
 import dashboardService from "../services/dashboardService";
 
 function SharedNav({ active, onLogout }) {
   const navigate = useNavigate();
   const links = [
-    { key: "dashboard", label: "Dashboard", path: "/dashboard" },
-    { key: "plan-trade", label: "Plan Trade", path: "/plan-trade" },
-    { key: "history", label: "History", path: "/history" },
-    { key: "settings", label: "Settings", path: "/settings" },
+    { key: "dashboard",  label: "Dashboard",  path: "/dashboard",  icon: <><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></> },
+    { key: "plan-trade", label: "Plan Trade", path: "/plan-trade", icon: <path strokeLinecap="round" strokeLinejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/> },
+    { key: "history",    label: "History",    path: "/history",    icon: <><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></> },
+    { key: "settings",   label: "Settings",   path: "/settings",   icon: <><circle cx="12" cy="12" r="3"/><path strokeLinecap="round" strokeLinejoin="round" d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></> },
   ];
   return (
     <nav style={{ background: "#1a1d23", borderBottom: "1px solid #2a2d35", position: "sticky", top: 0, zIndex: 50 }}>
@@ -25,13 +26,20 @@ function SharedNav({ active, onLogout }) {
         <div style={{ display: "flex", alignItems: "center", gap: 4, flex: 1 }}>
           {links.map(l => (
             <button key={l.key}
-              style={{ padding: "6px 12px", borderRadius: 6, border: "none", fontSize: 13, fontWeight: 500, cursor: "pointer",
+              style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 6, border: "none", fontSize: 13, fontWeight: 500, cursor: "pointer", transition: "all 0.15s",
                 background: active === l.key ? "rgba(0,200,224,0.12)" : "transparent",
                 color: active === l.key ? "#00c8e0" : "#9ca3af" }}
-              onClick={() => navigate(l.path)}>{l.label}</button>
+              onClick={() => navigate(l.path)}>
+              <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">{l.icon}</svg>
+              {l.label}
+            </button>
           ))}
         </div>
-        <button onClick={onLogout} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 14px", borderRadius: 6, border: "1px solid #2a2d35", background: "transparent", color: "#9ca3af", fontSize: 13, cursor: "pointer" }}>
+        <button onClick={onLogout}
+          style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 14px", borderRadius: 6, border: "1px solid #2a2d35", background: "transparent", color: "#9ca3af", fontSize: 13, fontWeight: 500, cursor: "pointer", transition: "all 0.15s", flexShrink: 0 }}>
+          <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+          </svg>
           Logout
         </button>
       </div>
@@ -41,19 +49,13 @@ function SharedNav({ active, onLogout }) {
 
 export default function PlanTrade() {
   const navigate = useNavigate();
-  const { user, loading, logout } = useAuth();
-  const [settings, setSettings] = useState(null);
+  const { logout, isAuthenticated } = useAuth();
+  const { settings } = useSettings();
   const [form, setForm] = useState({ symbol: "", tradeType: "BUY", entryPrice: "", stopLoss: "", takeProfit: "", notes: "" });
   const [calculated, setCalculated] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState("");
   const [error, setError] = useState("");
-
-  const fetchSettings = useCallback(async () => {
-    try { const res = await dashboardService.getSettings(); setSettings(res.data.data); } catch {}
-  }, []);
-
-  useEffect(() => { if (user) fetchSettings(); }, [user, fetchSettings]);
 
   const handleChange = (e) => { const { name, value } = e.target; setForm(f => ({ ...f, [name]: value })); };
 
@@ -88,7 +90,7 @@ export default function PlanTrade() {
     finally { setSubmitting(false); }
   };
 
-  if (loading || !user) return null;
+  if (!isAuthenticated) return null;
   const balance = settings?.accountBalance ?? 10000;
   const riskPct = settings?.riskPerTrade ?? 2;
 

@@ -1,13 +1,7 @@
 package edu.cit.oswa.tradersguardian.controller;
 
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.security.Keys;
-import javax.crypto.SecretKey;
-import java.nio.charset.StandardCharsets;
 import java.util.List;
 
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -28,26 +22,21 @@ public class TradePlanController {
     private final TradePlanService tradePlanService;
     private final AuthService authService;
 
-    @Value("${app.jwt.secret}")
-    private String jwtSecret;
-
     public TradePlanController(TradePlanService tradePlanService, AuthService authService) {
         this.tradePlanService = tradePlanService;
         this.authService = authService;
     }
 
+    /** Shared token resolver — uses the never-expired clock from AuthService */
     private User resolveUser(String authHeader) {
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             throw new InvalidTokenException("Missing or invalid authorization header");
         }
-        String token = authHeader.substring(7);
         try {
-            SecretKey key = Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8));
-            Claims claims = Jwts.parser().verifyWith(key).build()
-                    .parseSignedClaims(token).getPayload();
-            return authService.getUserByEmail(claims.getSubject());
+            String email = authService.parseEmailFromToken(authHeader.substring(7));
+            return authService.getUserByEmail(email);
         } catch (Exception e) {
-            throw new InvalidTokenException("Invalid or expired token");
+            throw new InvalidTokenException("Invalid token");
         }
     }
 
@@ -109,5 +98,23 @@ public class TradePlanController {
         User user = resolveUser(authHeader);
         DashboardStats stats = tradePlanService.getStats(user);
         return ResponseEntity.ok(ApiResponse.success("Stats fetched", stats));
+    }
+
+    /** PUT /api/trades/{id}/outcome — record WIN or LOSS for an approved trade */
+    @PutMapping("/{id}/outcome")
+    public ResponseEntity<ApiResponse<edu.cit.oswa.tradersguardian.entity.TradePlan>> recordOutcome(
+            @RequestHeader("Authorization") String authHeader,
+            @PathVariable Long id,
+            @RequestBody java.util.Map<String, Object> body) {
+        User user = resolveUser(authHeader);
+        String outcomeStr = (String) body.get("outcome");
+        edu.cit.oswa.tradersguardian.entity.TradePlan.Outcome outcome =
+                edu.cit.oswa.tradersguardian.entity.TradePlan.Outcome.valueOf(outcomeStr);
+        Double profitLossAmount = body.get("profitLossAmount") != null
+                ? ((Number) body.get("profitLossAmount")).doubleValue()
+                : null;
+        edu.cit.oswa.tradersguardian.entity.TradePlan plan =
+                tradePlanService.recordOutcome(id, user, outcome, profitLossAmount);
+        return ResponseEntity.ok(ApiResponse.success("Outcome recorded", plan));
     }
 }

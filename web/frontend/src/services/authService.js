@@ -23,24 +23,8 @@ apiClient.interceptors.request.use(
   }
 );
 
-// Response interceptor to handle 401 and redirect to login
-// Only redirect when a stored token was rejected (e.g. expired),
-// NOT when the /auth/login or /auth/register endpoint itself returns 401.
-apiClient.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response && error.response.status === 401) {
-      const requestUrl = error.config?.url || '';
-      const isAuthEndpoint = requestUrl.includes('/auth/login') || requestUrl.includes('/auth/register');
-      if (!isAuthEndpoint) {
-        // A protected endpoint rejected the token — clear it and send user to login
-        localStorage.removeItem('authToken');
-        window.location.href = '/login';
-      }
-    }
-    return Promise.reject(error);
-  }
-);
+// No response interceptor — session management is handled by AuthContext.
+// The user is only logged out when they explicitly call logout().
 
 const authService = {
   register: (data) => {
@@ -64,6 +48,10 @@ const authService = {
   },
 
   logout: () => {
+    // Call backend logout endpoint first
+    apiClient.post('/auth/logout').catch(() => {
+      // Continue with logout even if endpoint fails
+    });
     localStorage.removeItem('authToken');
     localStorage.removeItem('user');
   },
@@ -75,6 +63,10 @@ const authService = {
   isAuthenticated: () => {
     return !!localStorage.getItem('authToken');
   },
+
+  // Expose the shared Axios instance so other services can reuse it
+  // (same interceptors = consistent token attachment & 401 handling)
+  _client: apiClient,
 };
 
 export default authService;

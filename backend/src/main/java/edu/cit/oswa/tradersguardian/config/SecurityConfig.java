@@ -20,22 +20,18 @@ public class SecurityConfig {
         http
                 .csrf(csrf -> csrf.disable())
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                // JWT validation is handled manually in each controller.
+                // Permit all requests here to avoid Spring Security returning its own
+                // 401/403 before the controller's token checks can run.
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(
-                                "/",
-                                "/login.html",
-                                "/register.html",
-                                "/css/**",
-                                "/js/**",
-                                "/images/**",
-                                "/api/auth/**",
-                                "/api/user/**",
-                                "/api/settings/**",
-                                "/api/trades/**"
-                        ).permitAll()
-                        .anyRequest().authenticated()
+                        .anyRequest().permitAll()
                 )
-                .formLogin(form -> form.disable());
+                .httpBasic(basic -> basic.disable())
+                .formLogin(form -> form.disable())
+                .anonymous(anon -> anon.disable())
+                .sessionManagement(session ->
+                        session.sessionCreationPolicy(
+                                org.springframework.security.config.http.SessionCreationPolicy.STATELESS));
 
         return http.build();
     }

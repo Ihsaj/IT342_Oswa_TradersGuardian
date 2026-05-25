@@ -12,6 +12,10 @@ public class TradePlan {
         PENDING, APPROVED, DISAPPROVED
     }
 
+    public enum Outcome {
+        WIN, LOSS
+    }
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -52,6 +56,15 @@ public class TradePlan {
     private Status status = Status.PENDING;
 
     private String disapprovalReason;
+
+    /** WIN or LOSS — set after the trade has been executed (only for APPROVED trades) */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "outcome")
+    private Outcome outcome;
+
+    /** Actual profit (positive) or loss (negative) amount in account currency */
+    @Column(name = "profit_loss_amount")
+    private Double profitLossAmount;
 
     @Column(nullable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
@@ -94,6 +107,12 @@ public class TradePlan {
 
     public String getDisapprovalReason() { return disapprovalReason; }
     public void setDisapprovalReason(String disapprovalReason) { this.disapprovalReason = disapprovalReason; }
+
+    public Outcome getOutcome() { return outcome; }
+    public void setOutcome(Outcome outcome) { this.outcome = outcome; }
+
+    public Double getProfitLossAmount() { return profitLossAmount; }
+    public void setProfitLossAmount(Double profitLossAmount) { this.profitLossAmount = profitLossAmount; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }

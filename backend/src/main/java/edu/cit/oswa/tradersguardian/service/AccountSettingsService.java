@@ -34,4 +34,9 @@ public class AccountSettingsService {
         settings.setDailyLossLimit(request.getDailyLossLimit());
         return repo.save(settings);
     }
+
+    /** Persist any in-memory changes to an AccountSettings object */
+    public AccountSettings save(AccountSettings settings) {
+        return repo.save(settings);
+    }
 }

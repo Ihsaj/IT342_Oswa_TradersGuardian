@@ -1,15 +1,15 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import dashboardService from "../services/dashboardService";
+import { useSettings } from "../context/SettingsContext";
 
 function SharedNav({ active, onLogout }) {
   const navigate = useNavigate();
   const links = [
-    { key: "dashboard", label: "Dashboard", path: "/dashboard" },
-    { key: "plan-trade", label: "Plan Trade", path: "/plan-trade" },
-    { key: "history", label: "History", path: "/history" },
-    { key: "settings", label: "Settings", path: "/settings" },
+    { key: "dashboard",  label: "Dashboard",  path: "/dashboard",  icon: <><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></> },
+    { key: "plan-trade", label: "Plan Trade", path: "/plan-trade", icon: <path strokeLinecap="round" strokeLinejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/> },
+    { key: "history",    label: "History",    path: "/history",    icon: <><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></> },
+    { key: "settings",   label: "Settings",   path: "/settings",   icon: <><circle cx="12" cy="12" r="3"/><path strokeLinecap="round" strokeLinejoin="round" d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></> },
   ];
   return (
     <nav style={{ background: "#1a1d23", borderBottom: "1px solid #2a2d35", position: "sticky", top: 0, zIndex: 50 }}>
@@ -17,7 +17,7 @@ function SharedNav({ active, onLogout }) {
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
           <div style={{ width: 30, height: 30, background: "#00c8e0", borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center" }}>
             <svg width="20" height="20" fill="none" stroke="#0d0d0d" strokeWidth="2.5" viewBox="0 0 24 24">
-              <polyline points="3 17 9 11 13 15 21 7" /><polyline points="14 7 21 7 21 14" />
+              <polyline points="3 17 9 11 13 15 21 7"/><polyline points="14 7 21 7 21 14"/>
             </svg>
           </div>
           <span style={{ fontSize: 15, fontWeight: 600, color: "#f0f0f0" }}>Trader's Guardian</span>
@@ -25,16 +25,20 @@ function SharedNav({ active, onLogout }) {
         <div style={{ display: "flex", alignItems: "center", gap: 4, flex: 1 }}>
           {links.map(l => (
             <button key={l.key}
-              style={{
-                padding: "6px 12px", borderRadius: 6, border: "none", fontSize: 13, fontWeight: 500, cursor: "pointer",
+              style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 6, border: "none", fontSize: 13, fontWeight: 500, cursor: "pointer", transition: "all 0.15s",
                 background: active === l.key ? "rgba(0,200,224,0.12)" : "transparent",
-                color: active === l.key ? "#00c8e0" : "#9ca3af",
-              }}
-              onClick={() => navigate(l.path)}>{l.label}
+                color: active === l.key ? "#00c8e0" : "#9ca3af" }}
+              onClick={() => navigate(l.path)}>
+              <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">{l.icon}</svg>
+              {l.label}
             </button>
           ))}
         </div>
-        <button onClick={onLogout} style={{ padding: "6px 14px", borderRadius: 6, border: "1px solid #2a2d35", background: "transparent", color: "#9ca3af", fontSize: 13, cursor: "pointer" }}>
+        <button onClick={onLogout}
+          style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 14px", borderRadius: 6, border: "1px solid #2a2d35", background: "transparent", color: "#9ca3af", fontSize: 13, fontWeight: 500, cursor: "pointer", transition: "all 0.15s", flexShrink: 0 }}>
+          <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+          </svg>
           Logout
         </button>
       </div>
@@ -44,34 +48,29 @@ function SharedNav({ active, onLogout }) {
 
 export default function Settings() {
   const navigate = useNavigate();
-  const { user, loading, logout } = useAuth();
+  const { logout, isAuthenticated } = useAuth();
+  const { settings, settingsLoading, saveSettings, fetchSettings } = useSettings();
 
   const [form, setForm] = useState({ accountBalance: "", riskPerTrade: "", dailyLossLimit: "" });
-  const [originalSettings, setOriginalSettings] = useState(null);
-  const [dataLoading, setDataLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState("");
   const [error, setError] = useState("");
 
-  const fetchSettings = useCallback(async () => {
-    try {
-      setDataLoading(true);
-      const res = await dashboardService.getSettings();
-      const s = res.data.data;
-      setOriginalSettings(s);
+  // Populate form when shared settings load
+  useEffect(() => {
+    if (settings) {
       setForm({
-        accountBalance: s.accountBalance ?? 10000,
-        riskPerTrade: s.riskPerTrade ?? 2,
-        dailyLossLimit: s.dailyLossLimit ?? 5,
+        accountBalance: settings.accountBalance ?? 10000,
+        riskPerTrade: settings.riskPerTrade ?? 2,
+        dailyLossLimit: settings.dailyLossLimit ?? 5,
       });
-    } catch {
-      setError("Failed to load settings.");
-    } finally {
-      setDataLoading(false);
     }
-  }, []);
+  }, [settings]);
 
-  useEffect(() => { if (user) fetchSettings(); }, [user, fetchSettings]);
+  // Refetch on mount to ensure fresh data
+  useEffect(() => {
+    fetchSettings();
+  }, [fetchSettings]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -91,9 +90,9 @@ export default function Settings() {
     if (dll <= 0 || dll > 100) { setError("Daily loss limit must be between 0 and 100%."); setSaving(false); return; }
 
     try {
-      await dashboardService.updateSettings({ accountBalance: balance, riskPerTrade: rpt, dailyLossLimit: dll });
-      setSuccess("Settings saved successfully!");
-      await fetchSettings();
+      // saveSettings updates shared context + saves to backend in one call
+      await saveSettings({ accountBalance: balance, riskPerTrade: rpt, dailyLossLimit: dll });
+      setSuccess("Settings saved successfully! Changes are reflected on Dashboard.");
       setTimeout(() => setSuccess(""), 3000);
     } catch (err) {
       setError(err.response?.data?.message || "Failed to save settings.");
@@ -103,16 +102,16 @@ export default function Settings() {
   };
 
   const handleReset = () => {
-    if (originalSettings) {
+    if (settings) {
       setForm({
-        accountBalance: originalSettings.accountBalance,
-        riskPerTrade: originalSettings.riskPerTrade,
-        dailyLossLimit: originalSettings.dailyLossLimit,
+        accountBalance: settings.accountBalance,
+        riskPerTrade: settings.riskPerTrade,
+        dailyLossLimit: settings.dailyLossLimit,
       });
     }
   };
 
-  if (loading || !user) return null;
+  if (!isAuthenticated) return null;
 
   // Derived preview values
   const balance = parseFloat(form.accountBalance) || 0;
@@ -156,7 +155,7 @@ export default function Settings() {
           <form onSubmit={handleSubmit} style={cardStyle}>
             <h2 style={{ fontSize: 14, fontWeight: 600, color: "#e2e8f0", margin: "0 0 20px" }}>Risk Parameters</h2>
 
-            {dataLoading ? (
+            {settingsLoading ? (
               <p style={{ color: "#6b7280", fontSize: 13 }}>Loading settings...</p>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>

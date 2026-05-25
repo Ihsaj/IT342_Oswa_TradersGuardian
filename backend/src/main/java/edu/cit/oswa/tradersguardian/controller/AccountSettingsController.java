@@ -1,12 +1,5 @@
 package edu.cit.oswa.tradersguardian.controller;
 
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.security.Keys;
-import javax.crypto.SecretKey;
-import java.nio.charset.StandardCharsets;
-
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -26,9 +19,6 @@ public class AccountSettingsController {
     private final AccountSettingsService settingsService;
     private final AuthService authService;
 
-    @Value("${app.jwt.secret}")
-    private String jwtSecret;
-
     public AccountSettingsController(AccountSettingsService settingsService, AuthService authService) {
         this.settingsService = settingsService;
         this.authService = authService;
@@ -38,14 +28,11 @@ public class AccountSettingsController {
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             throw new InvalidTokenException("Missing or invalid authorization header");
         }
-        String token = authHeader.substring(7);
         try {
-            SecretKey key = Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8));
-            Claims claims = Jwts.parser().verifyWith(key).build()
-                    .parseSignedClaims(token).getPayload();
-            return authService.getUserByEmail(claims.getSubject());
+            String email = authService.parseEmailFromToken(authHeader.substring(7));
+            return authService.getUserByEmail(email);
         } catch (Exception e) {
-            throw new InvalidTokenException("Invalid or expired token");
+            throw new InvalidTokenException("Invalid token");
         }
     }
 

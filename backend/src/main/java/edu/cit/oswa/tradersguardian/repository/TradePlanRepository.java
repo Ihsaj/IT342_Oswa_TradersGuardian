@@ -9,4 +9,5 @@ public interface TradePlanRepository extends JpaRepository<TradePlan, Long> {
     List<TradePlan> findByUserOrderByCreatedAtDesc(User user);
     long countByUser(User user);
     long countByUserAndStatus(User user, TradePlan.Status status);
+    long countByUserAndOutcome(User user, TradePlan.Outcome outcome);
 }

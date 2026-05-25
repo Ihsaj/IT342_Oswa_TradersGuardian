@@ -2,42 +2,35 @@ import axios from 'axios';
 
 const API_BASE_URL = 'http://localhost:8080/api';
 
-const apiClient = axios.create({
+// Single shared Axios instance — always reads the latest token from localStorage
+const api = axios.create({
   baseURL: API_BASE_URL,
   headers: { 'Content-Type': 'application/json' },
 });
 
-apiClient.interceptors.request.use((config) => {
+// Attach token on every request
+api.interceptors.request.use((config) => {
   const token = localStorage.getItem('authToken');
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
 
-apiClient.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      localStorage.removeItem('authToken');
-      window.location.href = '/login';
-    }
-    return Promise.reject(error);
-  }
-);
-
 const dashboardService = {
   // Account Settings
-  getSettings: () => apiClient.get('/settings'),
-  updateSettings: (data) => apiClient.put('/settings', data),
+  getSettings:     ()             => api.get('/settings'),
+  updateSettings:  (data)         => api.put('/settings', data),
 
   // Trade Plans
-  getTrades: () => apiClient.get('/trades'),
-  createTrade: (data) => apiClient.post('/trades', data),
-  approveTrade: (id) => apiClient.put(`/trades/${id}/approve`),
-  disapproveTrade: (id, reason) => apiClient.put(`/trades/${id}/disapprove`, { reason }),
-  deleteTrade: (id) => apiClient.delete(`/trades/${id}`),
+  getTrades:       ()             => api.get('/trades'),
+  createTrade:     (data)         => api.post('/trades', data),
+  approveTrade:    (id)           => api.put(`/trades/${id}/approve`),
+  disapproveTrade: (id, reason)   => api.put(`/trades/${id}/disapprove`, { reason }),
+  recordOutcome:   (id, outcome, profitLossAmount) =>
+                     api.put(`/trades/${id}/outcome`, { outcome, profitLossAmount }),
+  deleteTrade:     (id)           => api.delete(`/trades/${id}`),
 
   // Dashboard stats
-  getStats: () => apiClient.get('/trades/stats'),
+  getStats:        ()             => api.get('/trades/stats'),
 };
 
 export default dashboardService;

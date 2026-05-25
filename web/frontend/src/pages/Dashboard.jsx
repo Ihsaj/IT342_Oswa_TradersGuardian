@@ -1,55 +1,47 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { useSettings } from "../context/SettingsContext";
 import dashboardService from "../services/dashboardService";
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const { user, loading, logout } = useAuth();
-  const [settings, setSettings] = useState(null);
-  const [stats, setStats] = useState({ totalTrades: 0, approvedTrades: 0, disapprovedTrades: 0 });
+  const { logout, isAuthenticated } = useAuth();
+  const { settings } = useSettings();
+  const [stats, setStats] = useState({
+    totalTrades: 0, approvedTrades: 0, disapprovedTrades: 0,
+    lossTrades: 0, currentDailyLoss: 0, dailyLossLimit: 0, accountBalance: 0
+  });
   const [dataLoading, setDataLoading] = useState(true);
 
-  const fetchData = useCallback(async () => {
+  const fetchStats = useCallback(async () => {
     try {
       setDataLoading(true);
-      const [settingsRes, statsRes] = await Promise.all([
-        dashboardService.getSettings(),
-        dashboardService.getStats(),
-      ]);
-      setSettings(settingsRes.data.data);
-      setStats(statsRes.data.data);
+      const res = await dashboardService.getStats();
+      setStats(res.data.data);
     } catch (err) {
-      console.error("Failed to fetch dashboard data", err);
+      console.error("Failed to fetch stats", err);
     } finally {
       setDataLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    if (user) fetchData();
-  }, [user, fetchData]);
+    fetchStats();
+  }, [fetchStats]);
 
   const handleLogout = () => {
     logout();
     navigate("/login");
   };
 
-  if (loading) {
-    return (
-      <div style={styles.loadingWrap}>
-        <div style={styles.spinner} />
-        <p style={styles.loadingText}>Loading...</p>
-      </div>
-    );
-  }
-
-  if (!user) return null;
+  if (!isAuthenticated) return null;
 
   const balance = settings?.accountBalance ?? 10000;
   const riskPct = settings?.riskPerTrade ?? 2;
   const dailyLimitPct = settings?.dailyLossLimit ?? 5;
-  const currentDailyLossPct = settings?.currentDailyLoss ?? 0;
+  // currentDailyLoss comes from stats (updated live when losses recorded in History)
+  const currentDailyLossPct = stats.currentDailyLoss ?? settings?.currentDailyLoss ?? 0;
   const dailyLossAmount = (balance * currentDailyLossPct) / 100;
   const dailyLossLimit = (balance * dailyLimitPct) / 100;
   const progressPct = dailyLossLimit > 0 ? Math.min((dailyLossAmount / dailyLossLimit) * 100, 100) : 0;
@@ -169,7 +161,7 @@ export default function Dashboard() {
             <span style={styles.cardTitle}>Quick Statistics</span>
           </div>
 
-          <div style={styles.statsGrid}>
+          <div style={{ ...styles.statsGrid, gridTemplateColumns: "repeat(4, 1fr)" }}>
             {/* Total Trades */}
             <div style={styles.statCard}>
               <div style={styles.statCardTop}>
@@ -187,7 +179,7 @@ export default function Dashboard() {
                 <svg width="18" height="18" fill="none" stroke="#22c55e" strokeWidth="2" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
                 </svg>
-                <span style={styles.statCardLabel}>Approved Trades</span>
+                <span style={styles.statCardLabel}>Approved</span>
               </div>
               <span style={{ ...styles.statCardValue, color: "#22c55e" }}>{dataLoading ? "—" : stats.approvedTrades}</span>
             </div>
@@ -195,12 +187,23 @@ export default function Dashboard() {
             {/* Disapproved Trades */}
             <div style={styles.statCard}>
               <div style={styles.statCardTop}>
-                <svg width="18" height="18" fill="none" stroke="#ef4444" strokeWidth="2" viewBox="0 0 24 24">
+                <svg width="18" height="18" fill="none" stroke="#6b7280" strokeWidth="2" viewBox="0 0 24 24">
                   <circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>
                 </svg>
-                <span style={styles.statCardLabel}>Disapproved Trades</span>
+                <span style={styles.statCardLabel}>Disapproved</span>
               </div>
-              <span style={{ ...styles.statCardValue, color: "#ef4444" }}>{dataLoading ? "—" : stats.disapprovedTrades}</span>
+              <span style={{ ...styles.statCardValue, color: "#6b7280" }}>{dataLoading ? "—" : stats.disapprovedTrades}</span>
+            </div>
+
+            {/* Losing Trades */}
+            <div style={{ ...styles.statCard, border: stats.lossTrades > 0 ? "1px solid rgba(239,68,68,0.35)" : "1px solid #2a2d35" }}>
+              <div style={styles.statCardTop}>
+                <svg width="18" height="18" fill="none" stroke="#ef4444" strokeWidth="2" viewBox="0 0 24 24">
+                  <polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/>
+                </svg>
+                <span style={styles.statCardLabel}>Losing Trades</span>
+              </div>
+              <span style={{ ...styles.statCardValue, color: "#ef4444" }}>{dataLoading ? "—" : stats.lossTrades}</span>
             </div>
           </div>
         </div>
