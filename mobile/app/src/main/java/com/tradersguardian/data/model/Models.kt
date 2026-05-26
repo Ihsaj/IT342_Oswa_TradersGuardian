@@ -11,6 +11,15 @@ sealed class UiState<out T> {
     data class Error(val message: String) : UiState<Nothing>()
 }
 
+// ── Backend ApiResponse wrapper ───────────────────────────────────────────────
+
+data class ApiResponse<T>(
+    @SerializedName("success") val success: Boolean,
+    @SerializedName("message") val message: String = "",
+    @SerializedName("data")    val data:    T?     = null,
+    @SerializedName("error")   val error:   String? = null
+)
+
 // ── Auth request bodies ───────────────────────────────────────────────────────
 
 data class LoginRequest(
@@ -19,90 +28,95 @@ data class LoginRequest(
 )
 
 data class RegisterRequest(
-    @SerializedName("email")    val email:    String,
-    @SerializedName("password") val password: String,
-    @SerializedName("data")     val data:     Map<String, String> = emptyMap()
+    @SerializedName("email")     val email:     String,
+    @SerializedName("password")  val password:  String,
+    @SerializedName("firstname") val firstname: String,
+    @SerializedName("lastname")  val lastname:  String
 )
 
-// ── Supabase GoTrue auth response ─────────────────────────────────────────────
+// ── Auth response bodies ─────────────────────────────────────────────────────
 
-data class AuthResponse(
-    @SerializedName("access_token")  val accessToken:  String,
-    @SerializedName("token_type")    val tokenType:    String = "bearer",
-    @SerializedName("expires_in")    val expiresIn:    Int    = 3600,
-    @SerializedName("refresh_token") val refreshToken: String = "",
-    @SerializedName("user")          val user:         SupabaseUser
+data class LoginResponse(
+    @SerializedName("token")    val token:    String,
+    @SerializedName("redirect") val redirect: String = ""
 )
 
-data class SupabaseUser(
-    @SerializedName("id")            val id:           String,
-    @SerializedName("email")         val email:        String,
-    @SerializedName("role")          val role:         String          = "authenticated",
-    @SerializedName("user_metadata") val userMetadata: Map<String, String> = emptyMap()
+data class UserResponse(
+    @SerializedName("id")        val id:        Long,
+    @SerializedName("email")     val email:     String,
+    @SerializedName("firstname") val firstname: String? = null,
+    @SerializedName("lastname")  val lastname:  String? = null
 )
 
-// ── Account Settings (Supabase table: account_settings) ──────────────────────
-// Column names match Spring Boot JPA default snake_case naming strategy
+// ── Account Settings (backend entity: account_settings) ──────────────────────
 
 data class AccountSettings(
-    @SerializedName("id")                 val id:               Long   = 0,
-    @SerializedName("user_id")            val userId:           String = "",
-    @SerializedName("account_balance")    val accountBalance:   Double = 10000.0,
-    @SerializedName("risk_per_trade")     val riskPerTrade:     Double = 2.0,
-    @SerializedName("daily_loss_limit")   val dailyLossLimit:   Double = 5.0,
-    @SerializedName("current_daily_loss") val currentDailyLoss: Double = 0.0
+    @SerializedName("id")               val id:               Long   = 0,
+    @SerializedName("accountBalance")   val accountBalance:   Double = 10000.0,
+    @SerializedName("riskPerTrade")     val riskPerTrade:     Double = 2.0,
+    @SerializedName("dailyLossLimit")   val dailyLossLimit:   Double = 5.0,
+    @SerializedName("currentDailyLoss") val currentDailyLoss: Double = 0.0
 )
 
 data class AccountSettingsRequest(
-    @SerializedName("user_id")          val userId:         String,
-    @SerializedName("account_balance")  val accountBalance: Double,
-    @SerializedName("risk_per_trade")   val riskPerTrade:   Double,
-    @SerializedName("daily_loss_limit") val dailyLossLimit: Double
+    @SerializedName("accountBalance")  val accountBalance: Double,
+    @SerializedName("riskPerTrade")    val riskPerTrade:   Double,
+    @SerializedName("dailyLossLimit")  val dailyLossLimit: Double
 )
 
-// ── Trade Plans (Supabase table: trade_plans) ─────────────────────────────────
-// Column names match the @Table/@Column definitions in TradePlan.java
+// ── Trade Plans (backend entity: trade_plans) ────────────────────────────────
 
 data class TradePlan(
-    @SerializedName("id")                val id:                Long   = 0,
-    @SerializedName("user_id")           val userId:            String = "",
-    @SerializedName("symbol")            val symbol:            String = "",
-    @SerializedName("trade_type")        val tradeType:         String = "BUY",
-    @SerializedName("entry_price")       val entryPrice:        Double = 0.0,
-    @SerializedName("stop_loss")         val stopLoss:          Double = 0.0,
-    @SerializedName("take_profit")       val takeProfit:        Double = 0.0,
-    @SerializedName("position_size")     val positionSize:      Double = 0.0,
-    @SerializedName("risk_amount")       val riskAmount:        Double = 0.0,
-    @SerializedName("risk_percent")      val riskPercent:       Double = 0.0,
+    @SerializedName("id")                val id:                Long    = 0,
+    @SerializedName("symbol")            val symbol:            String  = "",
+    @SerializedName("tradeType")         val tradeType:         String  = "BUY",
+    @SerializedName("entryPrice")        val entryPrice:        Double  = 0.0,
+    @SerializedName("stopLoss")          val stopLoss:          Double  = 0.0,
+    @SerializedName("takeProfit")        val takeProfit:        Double  = 0.0,
+    @SerializedName("positionSize")      val positionSize:      Double  = 0.0,
+    @SerializedName("riskAmount")        val riskAmount:        Double  = 0.0,
+    @SerializedName("riskPercent")       val riskPercent:       Double  = 0.0,
     @SerializedName("notes")             val notes:             String? = null,
-    @SerializedName("status")            val status:            String = "PENDING",
-    @SerializedName("disapproval_reason")val disapprovalReason: String? = null,
-    @SerializedName("created_at")        val createdAt:         String = ""
+    @SerializedName("status")            val status:            String  = "PENDING",
+    @SerializedName("disapprovalReason") val disapprovalReason: String? = null,
+    @SerializedName("outcome")           val outcome:           String? = null,
+    @SerializedName("profitLossAmount")  val profitLossAmount:  Double? = null,
+    @SerializedName("createdAt")         val createdAt:         String  = ""
 )
 
 data class CreateTradeRequest(
-    @SerializedName("user_id")       val userId:       String,
     @SerializedName("symbol")        val symbol:       String,
-    @SerializedName("trade_type")    val tradeType:    String,
-    @SerializedName("entry_price")   val entryPrice:   Double,
-    @SerializedName("stop_loss")     val stopLoss:     Double,
-    @SerializedName("take_profit")   val takeProfit:   Double,
-    @SerializedName("position_size") val positionSize: Double,
-    @SerializedName("risk_amount")   val riskAmount:   Double,
-    @SerializedName("risk_percent")  val riskPercent:  Double,
-    @SerializedName("notes")         val notes:        String = "",
-    @SerializedName("status")        val status:       String = "PENDING"
+    @SerializedName("tradeType")     val tradeType:    String,
+    @SerializedName("entryPrice")    val entryPrice:   Double,
+    @SerializedName("stopLoss")      val stopLoss:     Double,
+    @SerializedName("takeProfit")    val takeProfit:   Double,
+    @SerializedName("positionSize")  val positionSize: Double,
+    @SerializedName("riskAmount")    val riskAmount:   Double,
+    @SerializedName("riskPercent")   val riskPercent:  Double,
+    @SerializedName("notes")         val notes:        String = ""
 )
 
-// ── Dashboard (combined, computed locally) ────────────────────────────────────
+data class RecordOutcomeRequest(
+    @SerializedName("outcome")           val outcome:           String,
+    @SerializedName("profitLossAmount")  val profitLossAmount:  Double? = null
+)
+
+// ── Dashboard Stats (from GET /api/trades/stats) ─────────────────────────────
+
+data class DashboardStats(
+    @SerializedName("totalTrades")       val totalTrades:       Long   = 0,
+    @SerializedName("approvedTrades")    val approvedTrades:    Long   = 0,
+    @SerializedName("disapprovedTrades") val disapprovedTrades: Long   = 0,
+    @SerializedName("winTrades")         val winTrades:         Long   = 0,
+    @SerializedName("lossTrades")        val lossTrades:        Long   = 0,
+    @SerializedName("currentDailyLoss")  val currentDailyLoss:  Double = 0.0,
+    @SerializedName("dailyLossLimit")    val dailyLossLimit:    Double = 0.0,
+    @SerializedName("accountBalance")    val accountBalance:    Double = 0.0
+)
+
+// ── Dashboard (combined, fetched from settings + stats endpoints) ─────────────
 
 data class DashboardData(
     val settings: AccountSettings = AccountSettings(),
-    val stats:    TradeStats      = TradeStats()
-)
-
-data class TradeStats(
-    val totalTrades:       Int = 0,
-    val approvedTrades:    Int = 0,
-    val disapprovedTrades: Int = 0
+    val stats:    DashboardStats  = DashboardStats()
 )

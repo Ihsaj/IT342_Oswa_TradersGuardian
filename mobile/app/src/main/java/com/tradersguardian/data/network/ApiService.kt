@@ -6,68 +6,93 @@ import retrofit2.http.*
 
 interface ApiService {
 
-    // ── Supabase GoTrue Auth ──────────────────────────────────────────────────
+    // ── Auth ────────────────────────────────────────────────────────────────────
 
-    /** Login: POST /auth/v1/token?grant_type=password */
-    @POST("auth/v1/token")
+    /** POST /api/auth/login */
+    @POST("api/auth/login")
     suspend fun login(
-        @Query("grant_type") grantType: String = "password",
         @Body request: LoginRequest
-    ): Response<AuthResponse>
+    ): Response<ApiResponse<LoginResponse>>
 
-    /** Register: POST /auth/v1/signup */
-    @POST("auth/v1/signup")
+    /** POST /api/auth/register */
+    @POST("api/auth/register")
     suspend fun register(
         @Body request: RegisterRequest
-    ): Response<AuthResponse>
+    ): Response<ApiResponse<UserResponse>>
 
-    // ── Account Settings (table: account_settings) ────────────────────────────
+    // ── User ────────────────────────────────────────────────────────────────────
 
-    @GET("rest/v1/account_settings")
+    /** GET /api/user/me — current user profile */
+    @GET("api/user/me")
+    suspend fun me(
+        @Header("Authorization") token: String
+    ): Response<ApiResponse<UserResponse>>
+
+    // ── Account Settings ────────────────────────────────────────────────────────
+
+    /** GET /api/settings */
+    @GET("api/settings")
     suspend fun getSettings(
+        @Header("Authorization") token: String
+    ): Response<ApiResponse<AccountSettings>>
+
+    /** PUT /api/settings */
+    @PUT("api/settings")
+    suspend fun updateSettings(
         @Header("Authorization") token: String,
-        @Query("user_id")        userId: String,   // format: "eq.{uuid}"
-        @Query("select")         select: String = "*"
-    ): Response<List<AccountSettings>>
-
-    /** Upsert settings — Prefer header handled per-call in repository */
-    @POST("rest/v1/account_settings")
-    suspend fun upsertSettings(
-        @Header("Authorization") token:   String,
-        @Header("Prefer")        prefer:  String = "resolution=merge-duplicates",
         @Body request: AccountSettingsRequest
-    ): Response<Unit>
+    ): Response<ApiResponse<AccountSettings>>
 
-    // ── Trade Plans (table: trade_plans) ─────────────────────────────────────
+    // ── Trade Plans ─────────────────────────────────────────────────────────────
 
-    @GET("rest/v1/trade_plans")
+    /** GET /api/trades */
+    @GET("api/trades")
     suspend fun getTrades(
-        @Header("Authorization") token:   String,
-        @Query("user_id")        userId:  String,   // "eq.{uuid}"
-        @Query("select")         select:  String = "*",
-        @Query("order")          order:   String = "created_at.desc"
-    ): Response<List<TradePlan>>
+        @Header("Authorization") token: String
+    ): Response<ApiResponse<List<TradePlan>>>
 
-    @POST("rest/v1/trade_plans")
+    /** POST /api/trades */
+    @POST("api/trades")
     suspend fun createTrade(
-        @Header("Authorization") token:   String,
-        @Header("Prefer")        prefer:  String = "return=representation",
+        @Header("Authorization") token: String,
         @Body request: CreateTradeRequest
-    ): Response<List<TradePlan>>
+    ): Response<ApiResponse<TradePlan>>
 
-    /** PATCH a single trade by id — used for approve / disapprove */
-    @PATCH("rest/v1/trade_plans")
-    suspend fun patchTrade(
-        @Header("Authorization") token:  String,
-        @Query("id")             id:     String,   // "eq.{id}"
+    /** PUT /api/trades/{id}/approve */
+    @PUT("api/trades/{id}/approve")
+    suspend fun approveTrade(
+        @Header("Authorization") token: String,
+        @Path("id") id: Long
+    ): Response<ApiResponse<TradePlan>>
+
+    /** PUT /api/trades/{id}/disapprove */
+    @PUT("api/trades/{id}/disapprove")
+    suspend fun disapproveTrade(
+        @Header("Authorization") token: String,
+        @Path("id") id: Long,
         @Body body: Map<String, String>
-    ): Response<Unit>
+    ): Response<ApiResponse<TradePlan>>
 
-    @DELETE("rest/v1/trade_plans")
+    /** DELETE /api/trades/{id} */
+    @DELETE("api/trades/{id}")
     suspend fun deleteTrade(
-        @Header("Authorization") token:  String,
-        @Query("id")             id:     String    // "eq.{id}"
-    ): Response<Unit>
+        @Header("Authorization") token: String,
+        @Path("id") id: Long
+    ): Response<ApiResponse<Void>>
 
-    // ── Stats — computed from trade list, no separate endpoint needed ─────────
+    /** PUT /api/trades/{id}/outcome — record WIN or LOSS for an approved trade */
+    @PUT("api/trades/{id}/outcome")
+    suspend fun recordOutcome(
+        @Header("Authorization") token: String,
+        @Path("id") id: Long,
+        @Body request: RecordOutcomeRequest
+    ): Response<ApiResponse<TradePlan>>
+
+    // ── Dashboard Stats ─────────────────────────────────────────────────────────
+
+    /** GET /api/trades/stats */
+    @GET("api/trades/stats")
+    suspend fun getStats(
+        @Header("Authorization") token: String
+    ): Response<ApiResponse<DashboardStats>>
 }

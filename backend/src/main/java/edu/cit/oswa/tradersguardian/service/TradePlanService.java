@@ -63,7 +63,7 @@ public class TradePlanService {
 
     /**
      * Record whether an approved trade was a WIN or LOSS.
-     * If it's a LOSS, add the risk percent to the user's currentDailyLoss.
+     * If it's a LOSS, add the actual loss amount to the user's currentDailyLoss.
      */
     public TradePlan recordOutcome(Long id, User user, Outcome outcome, Double profitLossAmount) {
         TradePlan plan = repo.findById(id)
@@ -73,6 +73,7 @@ public class TradePlanService {
 
         // Undo previous outcome effect if re-recording
         boolean hadPreviousLoss = plan.getOutcome() == Outcome.LOSS;
+        Double previousLossAmount = plan.getProfitLossAmount();
         plan.setOutcome(outcome);
         plan.setProfitLossAmount(profitLossAmount);
 
@@ -80,12 +81,13 @@ public class TradePlanService {
         AccountSettings settings = settingsService.getOrCreate(user);
         double current = settings.getCurrentDailyLoss();
 
-        if (hadPreviousLoss) {
-            // Undo the previous loss contribution
-            current = Math.max(0, current - plan.getRiskPercent());
+        if (hadPreviousLoss && previousLossAmount != null && previousLossAmount < 0) {
+            // Undo the previous loss contribution (convert to positive for subtraction)
+            current = Math.max(0, current + previousLossAmount);
         }
-        if (outcome == Outcome.LOSS) {
-            current = current + plan.getRiskPercent();
+        if (outcome == Outcome.LOSS && profitLossAmount != null && profitLossAmount < 0) {
+            // Add the new loss amount (convert to positive for addition)
+            current = current + Math.abs(profitLossAmount);
         }
         settings.setCurrentDailyLoss(current);
         settingsService.save(settings);
@@ -99,9 +101,9 @@ public class TradePlanService {
                 .orElseThrow(() -> new RuntimeException("Trade plan not found"));
 
         // If this was a loss trade, undo its contribution to daily loss
-        if (plan.getOutcome() == Outcome.LOSS) {
+        if (plan.getOutcome() == Outcome.LOSS && plan.getProfitLossAmount() != null && plan.getProfitLossAmount() < 0) {
             AccountSettings settings = settingsService.getOrCreate(user);
-            double current = Math.max(0, settings.getCurrentDailyLoss() - plan.getRiskPercent());
+            double current = Math.max(0, settings.getCurrentDailyLoss() + plan.getProfitLossAmount());
             settings.setCurrentDailyLoss(current);
             settingsService.save(settings);
         }

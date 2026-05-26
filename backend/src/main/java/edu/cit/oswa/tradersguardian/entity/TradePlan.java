@@ -5,7 +5,7 @@ import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "trade_plans")
+@Table(name = "trades")
 public class TradePlan {
 
     public enum Status {

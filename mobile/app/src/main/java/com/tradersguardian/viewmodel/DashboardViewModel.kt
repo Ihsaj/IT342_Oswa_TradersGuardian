@@ -16,8 +16,6 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
     private val _dashboardState = MutableStateFlow<UiState<DashboardData>>(UiState.Loading)
     val dashboardState: StateFlow<UiState<DashboardData>> = _dashboardState
 
-    val showLogoutDialog = MutableStateFlow(false)
-
     init { loadDashboard() }
 
     fun loadDashboard() {
@@ -25,11 +23,5 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
             _dashboardState.value = UiState.Loading
             _dashboardState.value = repository.getDashboard()
         }
-    }
-
-    fun logout(onLoggedOut: () -> Unit) {
-        repository.clearToken()
-        showLogoutDialog.value = false
-        onLoggedOut()
     }
 }

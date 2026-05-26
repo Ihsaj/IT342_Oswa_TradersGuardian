@@ -72,14 +72,13 @@ class PlanTradeViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
     fun submit() {
-        val calc   = _calculated.value ?: run { error.value = "Calculate risk first."; return }
-        val userId = repository.getUserId() ?: run { error.value = "Not authenticated."; return }
+        val calc = _calculated.value ?: run { error.value = "Calculate risk first."; return }
+        if (!repository.isLoggedIn()) { error.value = "Not authenticated."; return }
 
         viewModelScope.launch {
             _submitState.value = UiState.Loading
             _submitState.value = repository.createTrade(
                 CreateTradeRequest(
-                    userId       = userId,
                     symbol       = symbol.value.uppercase().trim(),
                     tradeType    = tradeType.value,
                     entryPrice   = entryPrice.value.toDoubleOrNull() ?: 0.0,

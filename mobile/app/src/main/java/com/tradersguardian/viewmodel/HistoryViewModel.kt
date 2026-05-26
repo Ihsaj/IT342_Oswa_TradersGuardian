@@ -22,7 +22,12 @@ class HistoryViewModel(application: Application) : AndroidViewModel(application)
     private val _actionLoading = MutableStateFlow<Long?>(null)
     val actionLoading: StateFlow<Long?> = _actionLoading.asStateFlow()
 
+    private val _actionError = MutableStateFlow<String?>(null)
+    val actionError: StateFlow<String?> = _actionError.asStateFlow()
+
     init { loadTrades() }
+
+    fun clearActionError() { _actionError.value = null }
 
     fun loadTrades() {
         viewModelScope.launch {
@@ -34,7 +39,9 @@ class HistoryViewModel(application: Application) : AndroidViewModel(application)
     fun approve(id: Long) {
         viewModelScope.launch {
             _actionLoading.value = id
-            repository.approveTrade(id)
+            _actionError.value = null
+            val result = repository.approveTrade(id)
+            if (result is UiState.Error) _actionError.value = result.message
             _actionLoading.value = null
             loadTrades()
         }
@@ -43,7 +50,9 @@ class HistoryViewModel(application: Application) : AndroidViewModel(application)
     fun disapprove(id: Long, reason: String) {
         viewModelScope.launch {
             _actionLoading.value = id
-            repository.disapproveTrade(id, reason)
+            _actionError.value = null
+            val result = repository.disapproveTrade(id, reason)
+            if (result is UiState.Error) _actionError.value = result.message
             _actionLoading.value = null
             loadTrades()
         }
@@ -52,7 +61,20 @@ class HistoryViewModel(application: Application) : AndroidViewModel(application)
     fun delete(id: Long) {
         viewModelScope.launch {
             _actionLoading.value = id
-            repository.deleteTrade(id)
+            _actionError.value = null
+            val result = repository.deleteTrade(id)
+            if (result is UiState.Error) _actionError.value = result.message
+            _actionLoading.value = null
+            loadTrades()
+        }
+    }
+
+    fun recordOutcome(id: Long, outcome: String, profitLossAmount: Double?) {
+        viewModelScope.launch {
+            _actionLoading.value = id
+            _actionError.value = null
+            val result = repository.recordOutcome(id, outcome, profitLossAmount)
+            if (result is UiState.Error) _actionError.value = result.message
             _actionLoading.value = null
             loadTrades()
         }

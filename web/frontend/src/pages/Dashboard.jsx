@@ -4,13 +4,47 @@ import { useAuth } from "../context/AuthContext";
 import { useSettings } from "../context/SettingsContext";
 import dashboardService from "../services/dashboardService";
 
+function getGreeting() {
+  const h = new Date().getHours();
+  if (h < 12) return "Good Morning";
+  if (h < 18) return "Good Afternoon";
+  return "Good Evening";
+}
+
+function CircleRate({ value, label, color, track, loading }) {
+  const r    = 36;
+  const circ = 2 * Math.PI * r;
+  const dash = loading ? 0 : (value / 100) * circ;
+  return (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+      <div style={{ position: "relative", width: 88, height: 88 }}>
+        <svg width={88} height={88} style={{ transform: "rotate(-90deg)" }}>
+          <circle cx={44} cy={44} r={r} fill="none" stroke={track} strokeWidth={7} />
+          <circle
+            cx={44} cy={44} r={r} fill="none"
+            stroke={color} strokeWidth={7}
+            strokeDasharray={`${dash} ${circ}`}
+            strokeLinecap="round"
+            style={{ transition: "stroke-dasharray 0.6s ease" }}
+          />
+        </svg>
+        <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 1 }}>
+          <span style={{ fontSize: 17, fontWeight: 700, color, lineHeight: 1 }}>{loading ? "—" : `${value}%`}</span>
+          <span style={{ fontSize: 9, color, fontWeight: 600, opacity: 0.75 }}>{label.split(" ")[0]}</span>
+        </div>
+      </div>
+      <span style={{ fontSize: 11, color: "#6b7280", fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.05em" }}>{label}</span>
+    </div>
+  );
+}
+
 export default function Dashboard() {
   const navigate = useNavigate();
-  const { logout, isAuthenticated } = useAuth();
+  const { user, logout, isAuthenticated } = useAuth();
   const { settings } = useSettings();
   const [stats, setStats] = useState({
     totalTrades: 0, approvedTrades: 0, disapprovedTrades: 0,
-    lossTrades: 0, currentDailyLoss: 0, dailyLossLimit: 0, accountBalance: 0
+    winTrades: 0, lossTrades: 0, currentDailyLoss: 0, dailyLossLimit: 0, accountBalance: 0
   });
   const [dataLoading, setDataLoading] = useState(true);
 
@@ -45,6 +79,13 @@ export default function Dashboard() {
   const dailyLossAmount = (balance * currentDailyLossPct) / 100;
   const dailyLossLimit = (balance * dailyLimitPct) / 100;
   const progressPct = dailyLossLimit > 0 ? Math.min((dailyLossAmount / dailyLossLimit) * 100, 100) : 0;
+
+  const totalOutcomes = (stats.winTrades ?? 0) + (stats.lossTrades ?? 0);
+  const winRate  = totalOutcomes > 0 ? Math.round((stats.winTrades / totalOutcomes) * 100) : 0;
+  const lossRate = totalOutcomes > 0 ? 100 - winRate : 0;
+  const greeting  = getGreeting();
+  const dateLabel = new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
+  const traderName = user?.firstname || "Trader";
 
   return (
     <div style={styles.page}>
@@ -106,6 +147,19 @@ export default function Dashboard() {
             </svg>
             Plan New Trade
           </button>
+        </div>
+
+        {/* Greeting Banner */}
+        <div style={styles.greetingBanner}>
+          <div style={styles.greetingLeft}>
+            <span style={styles.greetingLabel}>{greeting}</span>
+            <span style={styles.greetingName}>{traderName}</span>
+            <span style={styles.greetingDate}>{dateLabel}</span>
+          </div>
+          <div style={styles.greetingRight}>
+            <CircleRate value={winRate}  label="Win Rate"  color="#22c55e" track="rgba(34,197,94,0.18)"  loading={dataLoading} />
+            <CircleRate value={lossRate} label="Loss Rate" color="#ef4444" track="rgba(239,68,68,0.18)" loading={dataLoading} />
+          </div>
         </div>
 
         {/* Account Summary */}
@@ -303,6 +357,14 @@ const styles = {
   actionCardText: { display: "flex", flexDirection: "column", gap: 4 },
   actionCardTitle: { fontSize: 14, fontWeight: 600, color: "#e2e8f0" },
   actionCardSub: { fontSize: 12, color: "#6b7280" },
+
+  // Greeting Banner
+  greetingBanner: { background: "#1a1d23", border: "1px solid #2a2d35", borderLeft: "3px solid #00c8e0", borderRadius: 12, padding: "20px 28px", display: "flex", alignItems: "center", justifyContent: "space-between" },
+  greetingLeft:   { display: "flex", flexDirection: "column", gap: 3 },
+  greetingLabel:  { fontSize: 13, color: "#00c8e0", fontWeight: 600 },
+  greetingName:   { fontSize: 22, fontWeight: 700, color: "#f0f0f0", lineHeight: 1.2 },
+  greetingDate:   { fontSize: 12, color: "#6b7280", marginTop: 2 },
+  greetingRight:  { display: "flex", alignItems: "flex-end", gap: 28 },
 
   // Help
   helpBtn: { position: "fixed", bottom: 24, right: 24, width: 36, height: 36, borderRadius: "50%", border: "1px solid #2a2d35", background: "#1a1d23", color: "#9ca3af", fontSize: 14, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" },

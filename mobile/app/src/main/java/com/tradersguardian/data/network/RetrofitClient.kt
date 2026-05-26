@@ -1,6 +1,5 @@
 package com.tradersguardian.data.network
 
-import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
@@ -9,31 +8,16 @@ import java.util.concurrent.TimeUnit
 
 object RetrofitClient {
 
-    // ── Supabase project credentials ──────────────────────────────────────────
-    // Base URL must end with /
-    private const val BASE_URL = "https://ixmvlhdqrcokeqhrdifr.supabase.co/"
-
-    // Supabase anonymous public key (safe to include in client apps)
-    const val ANON_KEY =
-        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9." +
-        "eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml4bXZsaGRxcmNva2VxaHJkaWZyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY4NDA4NTQsImV4cCI6MjA2MjQxNjg1NH0." +
-        "ZOqjkyBTp5H4OE0STk2J2-6j6dJZ_7PBw8e8QakakS8"
-
-    // ── Interceptor — injects apikey header on every request ──────────────────
-    private val supabaseInterceptor = Interceptor { chain ->
-        val request = chain.request().newBuilder()
-            .addHeader("apikey",       ANON_KEY)
-            .addHeader("Content-Type", "application/json")
-            .build()
-        chain.proceed(request)
-    }
+    // ── Spring Boot backend URL ─────────────────────────────────────────────
+    // For Android emulator → 10.0.2.2 maps to host machine's localhost
+    // For physical device  → use your machine's LAN IP (e.g. 192.168.x.x)
+    private const val BASE_URL = "http://10.0.2.2:8080/"
 
     private val loggingInterceptor = HttpLoggingInterceptor().apply {
         level = HttpLoggingInterceptor.Level.BODY
     }
 
     private val okHttpClient = OkHttpClient.Builder()
-        .addInterceptor(supabaseInterceptor)
         .addInterceptor(loggingInterceptor)
         .connectTimeout(30, TimeUnit.SECONDS)
         .readTimeout(30, TimeUnit.SECONDS)

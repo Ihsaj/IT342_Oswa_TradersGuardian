@@ -54,4 +54,12 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun resetSaveState() { _saveState.value = UiState.Idle }
+
+    val showLogoutDialog = MutableStateFlow(false)
+
+    fun logout(onLoggedOut: () -> Unit) {
+        repository.clearToken()
+        showLogoutDialog.value = false
+        onLoggedOut()
+    }
 }

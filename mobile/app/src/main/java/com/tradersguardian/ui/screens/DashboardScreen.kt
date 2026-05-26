@@ -15,85 +15,47 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.tradersguardian.R
 import com.tradersguardian.data.model.*
 import com.tradersguardian.ui.components.*
 import com.tradersguardian.ui.theme.*
 import com.tradersguardian.viewmodel.DashboardViewModel
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Locale
 
 @Composable
 fun DashboardScreen(
     onNavigate: (String) -> Unit,
-    onLogout: () -> Unit,
     viewModel: DashboardViewModel = viewModel()
 ) {
     val dashboardState by viewModel.dashboardState.collectAsState()
-    val showLogout     by viewModel.showLogoutDialog.collectAsState()
+    val lifecycleOwner = LocalLifecycleOwner.current
 
-    // ── Logout confirmation ────────────────────────────────────────────────
-    if (showLogout) {
-        Dialog(onDismissRequest = { viewModel.showLogoutDialog.value = false }) {
-            Column(
-                verticalArrangement = Arrangement.spacedBy(20.dp),
-                modifier = Modifier
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(Surface)
-                    .border(1.dp, BorderColor, RoundedCornerShape(20.dp))
-                    .padding(28.dp)
-            ) {
-                Box(
-                    contentAlignment = Alignment.Center,
-                    modifier = Modifier
-                        .size(48.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(ErrorBg)
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_logout),
-                        contentDescription = null,
-                        tint = ErrorRed,
-                        modifier = Modifier.size(22.dp)
-                    )
-                }
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text("Sign out?", style = MaterialTheme.typography.titleMedium, color = TextPrimary)
-                    Text(
-                        "You'll need to sign back in to access your account.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = TextMuted,
-                        lineHeight = 18.sp
-                    )
-                }
-                HorizontalDivider(color = BorderColor)
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    TgOutlinedButton(
-                        text = "Cancel",
-                        onClick = { viewModel.showLogoutDialog.value = false },
-                        modifier = Modifier.weight(1f)
-                    )
-                    Button(
-                        onClick = { viewModel.logout(onLogout) },
-                        modifier = Modifier.weight(1f).height(48.dp),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = ErrorRed, contentColor = Color.White)
-                    ) {
-                        Text("Log Out", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
-                    }
-                }
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                viewModel.loadDashboard()
             }
         }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
     Scaffold(
-        containerColor = BgDark,
+        containerColor = BgMid,
+        topBar = { DashboardTopBar() }
     ) { padding ->
         when (val state = dashboardState) {
             is UiState.Loading -> {
@@ -114,23 +76,51 @@ fun DashboardScreen(
                 }
             }
             is UiState.Success -> DashboardContent(
-                data       = state.data,
+                data      = state.data,
                 onNavigate = onNavigate,
-                onLogout   = { viewModel.showLogoutDialog.value = true },
-                modifier   = Modifier.padding(padding)
+                modifier  = Modifier.padding(padding)
             )
             else -> Unit
         }
     }
 }
 
-// ── Dashboard Content ─────────────────────────────────────────────────────────
+// ── Top Bar ───────────────────────────────────────────────────────────────────
+
+@Composable
+private fun DashboardTopBar() {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(BgMid)
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxWidth()
+                .statusBarsPadding()
+                .height(48.dp)
+                .padding(horizontal = 20.dp)
+        ) {
+            NavLogoBadge()
+            Spacer(Modifier.width(10.dp))
+            Text(
+                "Trader's Guardian",
+                style      = MaterialTheme.typography.titleSmall,
+                color      = TextPrimary,
+                fontWeight = FontWeight.Bold
+            )
+        }
+        HorizontalDivider(color = BorderColor.copy(alpha = 0.4f), thickness = 0.5.dp)
+    }
+}
+
+// ── Dashboard content ─────────────────────────────────────────────────────────
 
 @Composable
 private fun DashboardContent(
     data: DashboardData,
     onNavigate: (String) -> Unit,
-    onLogout: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val s = data.settings
@@ -139,279 +129,312 @@ private fun DashboardContent(
     val balance      = s.accountBalance
     val riskPct      = s.riskPerTrade
     val lossLimitPct = s.dailyLossLimit
-    val currLossPct  = s.currentDailyLoss
-    val riskAmount   = balance * riskPct / 100.0
     val lossLimitAmt = balance * lossLimitPct / 100.0
-    val currLossAmt  = balance * currLossPct / 100.0
+    val currLossAmt  = s.currentDailyLoss // Now stores actual dollar amount of losses
     val progress     = if (lossLimitAmt > 0) (currLossAmt / lossLimitAmt).toFloat().coerceIn(0f, 1f) else 0f
+    val winRate      = if (t.winTrades + t.lossTrades > 0) t.winTrades.toFloat() / (t.winTrades + t.lossTrades).toFloat() else 0f
 
-    val animatedProgress by animateFloatAsState(
-        targetValue   = progress,
-        animationSpec = tween(900, easing = EaseOutCubic),
-        label         = "progress"
-    )
     val progressColor = when {
         progress > 0.8f -> ErrorRed
         progress > 0.5f -> WarningAmber
         else            -> AccentCyan
     }
 
+    val animatedProgress by animateFloatAsState(
+        targetValue   = progress,
+        animationSpec = tween(900, easing = EaseOutCubic),
+        label         = "progress"
+    )
+
     Column(
+        verticalArrangement = Arrangement.spacedBy(16.dp),
         modifier = modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 20.dp, vertical = 20.dp),
-        verticalArrangement = Arrangement.spacedBy(20.dp)
+            .padding(horizontal = 16.dp, vertical = 20.dp)
     ) {
+        // ── Welcome card ──────────────────────────────────────────────────────
+        WelcomeCard(wins = t.winTrades, losses = t.lossTrades, winRate = winRate)
 
-        // ── Page header ───────────────────────────────────────────────────
-        Row(
-            verticalAlignment   = Alignment.Top,
-            horizontalArrangement = Arrangement.SpaceBetween,
-            modifier = Modifier.fillMaxWidth()
+        // ── Plan CTA (gradient) ───────────────────────────────────────────────
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(52.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(Brush.horizontalGradient(listOf(AccentCyan, AccentCyanDim)))
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication        = null,
+                    onClick           = { onNavigate("plan-trade") }
+                ),
+            contentAlignment = Alignment.Center
         ) {
-            Column {
-                Text(
-                    "Welcome back",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = TextMuted
-                )
-                Text(
-                    "Dashboard",
-                    style = MaterialTheme.typography.headlineLarge.copy(
-                        fontWeight    = FontWeight.Bold,
-                        letterSpacing = (-0.5).sp
-                    ),
-                    color = TextPrimary
-                )
-            }
-            // Logout circular button
-            Box(
-                contentAlignment = Alignment.Center,
-                modifier = Modifier
-                    .size(38.dp)
-                    .clip(CircleShape)
-                    .background(Surface)
-                    .border(1.dp, BorderColor, CircleShape)
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                        onClick = onLogout
-                    )
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment     = Alignment.CenterVertically
             ) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_logout),
-                    contentDescription = "Logout",
-                    tint = TextMuted,
-                    modifier = Modifier.size(18.dp)
-                )
+                Icon(painterResource(R.drawable.ic_trending_up), null, tint = BgDark, modifier = Modifier.size(18.dp))
+                Text("Plan New Trade", style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold), color = BgDark)
             }
         }
 
-        // ── Account Balance card ──────────────────────────────────────────
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(16.dp))
-                .background(Surface)
-                .border(1.dp, BorderColor, RoundedCornerShape(16.dp))
-                .padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            Text("Account Balance", style = MaterialTheme.typography.bodySmall, color = TextMuted)
-            Row(
-                verticalAlignment   = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column {
-                    Text(
-                        "${"$"}${"%.0f".format(balance)}",
-                        style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Bold),
-                        color = TextPrimary
-                    )
-                    Text(
-                        "Risk per trade: ",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = TextMuted
-                    )
-                    Text(
-                        "${"$"}${"%.2f".format(riskAmount)}",
-                        style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold),
-                        color = AccentCyan
-                    )
-                }
-                // Circular daily loss gauge
-                Box(contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(
-                        progress     = { animatedProgress },
-                        modifier     = Modifier.size(72.dp),
-                        color        = progressColor,
-                        trackColor   = Surface2,
-                        strokeWidth  = 6.dp,
-                        strokeCap    = StrokeCap.Round
-                    )
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(
-                            "${"%.1f".format(currLossPct)}%",
-                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                            color = progressColor,
-                            fontSize = 12.sp
-                        )
-                        Text(
-                            "Daily\nLoss",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = TextMuted,
-                            fontSize = 8.sp,
-                            lineHeight = 10.sp,
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                        )
-                    }
-                }
+        // ── Account Summary ───────────────────────────────────────────────────
+        TgCard {
+            SectionHeader("Account Summary", R.drawable.ic_dollar)
+
+            // 2×2 chip grid
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+                StatChip("Account Balance", "$${"%.0f".format(balance)}", TextPrimary,   R.drawable.ic_dollar,       AccentCyan,   Modifier.weight(1f))
+                StatChip("Risk Per Trade",  "$riskPct%",                  AccentCyan,    R.drawable.ic_trending_up,  AccentCyan,   Modifier.weight(1f))
             }
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(10.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+                StatChip("Daily Limit",   "$${"%.0f".format(lossLimitAmt)}",   WarningAmber,                                 R.drawable.ic_clock,    WarningAmber, Modifier.weight(1f))
+                StatChip("Current Loss",  "$${"%.2f".format(currLossAmt)}",   if (progress > 0.75f) ErrorRed else TextPrimary, R.drawable.ic_x_circle, if (progress > 0.75f) ErrorRed else TextMuted, Modifier.weight(1f))
+            }
+            Spacer(Modifier.height(20.dp))
+
+            // Progress header row
             Row(
                 horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier.fillMaxWidth()
+                verticalAlignment     = Alignment.CenterVertically,
+                modifier              = Modifier.fillMaxWidth().padding(bottom = 10.dp)
             ) {
-                Text("Daily loss progress", style = MaterialTheme.typography.bodySmall, color = TextMuted)
-                Text(
-                    "${"$"}${"%.2f".format(currLossAmt)} / ${"$"}${"%.2f".format(lossLimitAmt)}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = TextMuted
-                )
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text("Daily Loss Progress", color = TextMuted, style = MaterialTheme.typography.bodySmall)
+                    Text(
+                        "$${"%.2f".format(currLossAmt)} / $${"%.2f".format(lossLimitAmt)}",
+                        color = TextDisabled,
+                        style = MaterialTheme.typography.labelSmall
+                    )
+                }
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(progressColor.copy(alpha = 0.15f))
+                        .padding(horizontal = 10.dp, vertical = 5.dp)
+                ) {
+                    Text(
+                        "${"%.0f".format(animatedProgress * 100)}%",
+                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                        color = progressColor
+                    )
+                }
             }
-            Spacer(Modifier.height(4.dp))
             LinearProgressIndicator(
-                progress    = { animatedProgress },
-                modifier    = Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(99.dp)),
-                color       = progressColor,
-                trackColor  = Surface2,
-                strokeCap   = StrokeCap.Round
+                progress   = { animatedProgress },
+                modifier   = Modifier.fillMaxWidth().height(10.dp).clip(RoundedCornerShape(99.dp)),
+                color      = progressColor,
+                trackColor = Surface2,
+                strokeCap  = StrokeCap.Round
             )
+            if (progress > 0.8f) {
+                Spacer(Modifier.height(10.dp))
+                Row(
+                    verticalAlignment     = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(ErrorBg)
+                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                ) {
+                    Icon(painterResource(R.drawable.ic_x_circle), null, tint = ErrorRed, modifier = Modifier.size(14.dp))
+                    Text("Approaching daily loss limit", style = MaterialTheme.typography.bodySmall, color = ErrorRed)
+                }
+            }
         }
 
-        // ── Quick Stats row (3 mini-cards) ────────────────────────────────
+        // ── Quick Statistics ──────────────────────────────────────────────────
+        TgCard {
+            SectionHeader("Quick Statistics", R.drawable.ic_bar_chart)
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                StatRow("Total Trades",  "${t.totalTrades}",       R.drawable.ic_trending_up,  AccentCyan.copy(0.12f), AccentCyan,   AccentCyan)
+                HorizontalDivider(color = BorderColor, thickness = 0.5.dp)
+                StatRow("Approved",      "${t.approvedTrades}",    R.drawable.ic_check_circle, SuccessBg,              SuccessGreen, SuccessGreen)
+                HorizontalDivider(color = BorderColor, thickness = 0.5.dp)
+                StatRow("Disapproved",   "${t.disapprovedTrades}", R.drawable.ic_x_circle,     ErrorBg,                ErrorRed,     ErrorRed)
+                HorizontalDivider(color = BorderColor, thickness = 0.5.dp)
+                StatRow(
+                    label      = "Win Rate",
+                    value      = if (t.totalTrades > 0) "${"%.0f".format(winRate * 100)}%" else "—",
+                    iconRes    = R.drawable.ic_check_circle,
+                    iconBg     = if (winRate >= 0.5f) SuccessBg    else WarningBg,
+                    iconTint   = if (winRate >= 0.5f) SuccessGreen else WarningAmber,
+                    valueColor = if (winRate >= 0.5f) SuccessGreen else WarningAmber
+                )
+            }
+        }
+
+        // ── Quick Actions ─────────────────────────────────────────────────────
         Row(
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-            modifier = Modifier.fillMaxWidth()
+            modifier              = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment     = Alignment.CenterVertically
         ) {
-            MiniStatCard(
-                iconRes   = R.drawable.ic_bar_chart,
-                iconBg    = AccentCyan.copy(0.12f),
-                iconTint  = AccentCyan,
-                value     = "${t.totalTrades}",
-                label     = "Total Trades",
-                modifier  = Modifier.weight(1f)
-            )
-            MiniStatCard(
-                iconRes   = R.drawable.ic_check_circle,
-                iconBg    = SuccessBg,
-                iconTint  = SuccessGreen,
-                value     = "${t.approvedTrades}",
-                label     = "Approved",
-                valueColor = SuccessGreen,
-                modifier  = Modifier.weight(1f)
-            )
-            MiniStatCard(
-                iconRes   = R.drawable.ic_x_circle,
-                iconBg    = ErrorBg,
-                iconTint  = ErrorRed,
-                value     = "${t.disapprovedTrades}",
-                label     = "Disapproved",
-                valueColor = ErrorRed,
-                modifier  = Modifier.weight(1f)
-            )
+            Text("Quick Actions", style = MaterialTheme.typography.titleSmall, color = TextSecondary)
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(Surface2)
+                    .border(1.dp, BorderColor, RoundedCornerShape(6.dp))
+                    .padding(horizontal = 8.dp, vertical = 3.dp)
+            ) {
+                Text("3 shortcuts", style = MaterialTheme.typography.labelSmall, color = TextMuted)
+            }
         }
-
-        // ── Risk Parameters section ───────────────────────────────────────
-        Text(
-            "RISK PARAMETERS",
-            style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 1.2.sp),
-            color = TextMuted,
-            fontWeight = FontWeight.SemiBold
-        )
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(16.dp))
-                .background(Surface)
-                .border(1.dp, BorderColor, RoundedCornerShape(16.dp))
-        ) {
-            RiskParamRow(
-                label    = "Risk Per Trade",
-                subLabel = "${"$"}${"%.2f".format(riskAmount)} max",
-                value    = "$riskPct%",
-                valueColor = AccentCyan
-            )
-            HorizontalDivider(color = BorderColor, thickness = 0.5.dp)
-            RiskParamRow(
-                label    = "Daily Loss Limit",
-                subLabel = "${"$"}${"%.2f".format(lossLimitAmt)} max",
-                value    = "$lossLimitPct%",
-                valueColor = WarningAmber
-            )
-        }
-
-        // ── Quick Actions section ─────────────────────────────────────────
-        Text(
-            "QUICK ACTIONS",
-            style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 1.2.sp),
-            color = TextMuted,
-            fontWeight = FontWeight.SemiBold
-        )
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            ActionCard("Plan New Trade",   "Validate your trade before entering",  R.drawable.ic_trending_up, AccentCyan)   { onNavigate("plan-trade") }
-            ActionCard("Trade History",    "Review your past trading decisions",    R.drawable.ic_clock,       PendingBlue)  { onNavigate("history") }
-            ActionCard("Account Settings", "Configure your risk parameters",        R.drawable.ic_settings,    WarningAmber) { onNavigate("settings") }
+            ActionCard("Plan New Trade",   "Validate your trade before entering", R.drawable.ic_trending_up, AccentCyan)   { onNavigate("plan-trade") }
+            ActionCard("Trade History",    "Review your past trading decisions",  R.drawable.ic_clock,       PendingBlue)  { onNavigate("history") }
+            ActionCard("Account Settings", "Configure your risk parameters",      R.drawable.ic_settings,    WarningAmber) { onNavigate("settings") }
         }
 
         Spacer(Modifier.height(16.dp))
     }
 }
 
-// ── Mini stat card ────────────────────────────────────────────────────────────
+// ── Welcome card ──────────────────────────────────────────────────────────────
 
 @Composable
-private fun MiniStatCard(
-    iconRes: Int, iconBg: Color, iconTint: Color,
-    value: String, label: String,
-    valueColor: Color = TextPrimary,
-    modifier: Modifier = Modifier
-) {
-    Column(
-        horizontalAlignment = Alignment.Start,
-        verticalArrangement = Arrangement.spacedBy(10.dp),
-        modifier = modifier
-            .clip(RoundedCornerShape(14.dp))
-            .background(Surface)
-            .border(1.dp, BorderColor, RoundedCornerShape(14.dp))
-            .padding(14.dp)
-    ) {
-        Box(
-            contentAlignment = Alignment.Center,
-            modifier = Modifier.size(34.dp).clip(RoundedCornerShape(8.dp)).background(iconBg)
-        ) {
-            Icon(painterResource(iconRes), null, tint = iconTint, modifier = Modifier.size(18.dp))
+private fun WelcomeCard(wins: Long, losses: Long, winRate: Float) {
+    var currentTime by remember { mutableStateOf(Calendar.getInstance().timeInMillis) }
+    
+    LaunchedEffect(Unit) {
+        while (true) {
+            kotlinx.coroutines.delay(60000) // Update every minute
+            currentTime = Calendar.getInstance().timeInMillis
         }
-        Text(value, style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold), color = valueColor)
-        Text(label, style = MaterialTheme.typography.labelSmall, color = TextMuted, lineHeight = 14.sp)
+    }
+    
+    val calendar = Calendar.getInstance().apply { timeInMillis = currentTime }
+    val hour     = calendar.get(Calendar.HOUR_OF_DAY)
+    val greeting = when {
+        hour < 12 -> "Good Morning"
+        hour < 17 -> "Good Afternoon"
+        else      -> "Good Evening"
+    }
+    val today    = SimpleDateFormat("EEEE, MMM d", Locale.getDefault()).format(calendar.time)
+    val winColor = if (winRate >= 0.5f) SuccessGreen else WarningAmber
+    val winBg    = if (winRate >= 0.5f) SuccessBg    else WarningBg
+    val lossRate = if (wins + losses > 0) losses.toFloat() / (wins + losses).toFloat() else 0f
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(Brush.linearGradient(listOf(AccentCyan.copy(alpha = 0.07f), Surface)))
+            .border(1.dp, AccentCyan.copy(alpha = 0.3f), RoundedCornerShape(16.dp))
+    ) {
+        Row(
+            modifier              = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 18.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment     = Alignment.CenterVertically
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(greeting, style = MaterialTheme.typography.labelSmall, color = AccentCyan)
+                Text("Trader", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold), color = TextPrimary)
+                Spacer(Modifier.height(8.dp))
+                Text(today, style = MaterialTheme.typography.labelSmall, color = TextDisabled)
+            }
+            // Win and Loss rate circles
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier
+                            .size(72.dp)
+                            .clip(CircleShape)
+                            .background(winBg)
+                            .border(2.dp, winColor.copy(alpha = 0.5f), CircleShape)
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                if (winRate > 0f) "${"%.0f".format(winRate * 100)}%" else "—",
+                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                color = winColor
+                            )
+                            Text("Win", style = MaterialTheme.typography.labelSmall, color = TextMuted)
+                        }
+                    }
+                    Text("Win Rate", style = MaterialTheme.typography.labelSmall, color = TextMuted)
+                }
+
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier
+                            .size(72.dp)
+                            .clip(CircleShape)
+                            .background(ErrorBg)
+                            .border(2.dp, ErrorRed.copy(alpha = 0.5f), CircleShape)
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                if (lossRate > 0f) "${"%.0f".format(lossRate * 100)}%" else "—",
+                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                color = ErrorRed
+                            )
+                            Text("Loss", style = MaterialTheme.typography.labelSmall, color = TextMuted)
+                        }
+                    }
+                    Text("Loss Rate", style = MaterialTheme.typography.labelSmall, color = TextMuted)
+                }
+            }
+        }
     }
 }
 
-// ── Risk param row ────────────────────────────────────────────────────────────
+// ── Stat chip ─────────────────────────────────────────────────────────────────
 
 @Composable
-private fun RiskParamRow(label: String, subLabel: String, value: String, valueColor: Color) {
-    Row(
-        verticalAlignment   = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween,
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 16.dp)
+private fun StatChip(
+    label: String,
+    value: String,
+    valueColor: Color,
+    iconRes: Int,
+    iconTint: Color,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier
+            .clip(RoundedCornerShape(12.dp))
+            .background(Surface2)
+            .padding(14.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(label, style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold), color = TextPrimary)
-            Text(subLabel, style = MaterialTheme.typography.bodySmall, color = TextMuted)
+        Icon(painterResource(iconRes), contentDescription = null, tint = iconTint, modifier = Modifier.size(16.dp))
+        Text(label, style = MaterialTheme.typography.labelSmall, color = TextMuted)
+        Text(value, style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold), color = valueColor)
+    }
+}
+
+// ── Stat row ──────────────────────────────────────────────────────────────────
+
+@Composable
+private fun StatRow(
+    label: String, value: String,
+    iconRes: Int, iconBg: Color, iconTint: Color, valueColor: Color
+) {
+    Row(
+        verticalAlignment     = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier.size(38.dp).clip(RoundedCornerShape(10.dp)).background(iconBg)
+        ) {
+            Icon(painterResource(iconRes), null, tint = iconTint, modifier = Modifier.size(20.dp))
         }
+        Text(label, style = MaterialTheme.typography.bodyMedium, color = TextMuted, modifier = Modifier.weight(1f))
         Text(value, style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold), color = valueColor)
     }
 }
@@ -424,39 +447,50 @@ private fun ActionCard(
     iconRes: Int, iconTint: Color,
     onClick: () -> Unit
 ) {
-    Row(
-        verticalAlignment   = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(14.dp),
+    Box(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(14.dp))
             .background(Surface)
             .border(1.dp, BorderColor, RoundedCornerShape(14.dp))
+            .height(IntrinsicSize.Min)
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                onClick = onClick
+                indication        = null,
+                onClick           = onClick
             )
-            .padding(16.dp)
     ) {
         Box(
-            contentAlignment = Alignment.Center,
             modifier = Modifier
-                .size(44.dp)
-                .clip(RoundedCornerShape(12.dp))
-                .background(iconTint.copy(alpha = 0.12f))
-        ) {
-            Icon(painterResource(iconRes), null, tint = iconTint, modifier = Modifier.size(22.dp))
-        }
-        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-            Text(title,    style = MaterialTheme.typography.titleSmall, color = TextPrimary)
-            Text(subtitle, style = MaterialTheme.typography.bodySmall,  color = TextMuted)
-        }
-        Icon(
-            painterResource(R.drawable.ic_chevron_right),
-            contentDescription = null,
-            tint = TextDisabled,
-            modifier = Modifier.size(18.dp)
+                .width(3.dp)
+                .fillMaxHeight()
+                .clip(RoundedCornerShape(topStart = 14.dp, bottomStart = 14.dp))
+                .background(iconTint.copy(alpha = 0.6f))
         )
+        Row(
+            verticalAlignment     = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+            modifier              = Modifier.padding(start = 19.dp, end = 16.dp, top = 16.dp, bottom = 16.dp)
+        ) {
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .size(44.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(iconTint.copy(alpha = 0.12f))
+            ) {
+                Icon(painterResource(iconRes), null, tint = iconTint, modifier = Modifier.size(22.dp))
+            }
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text(title,    style = MaterialTheme.typography.titleSmall, color = TextPrimary)
+                Text(subtitle, style = MaterialTheme.typography.bodySmall,  color = TextMuted)
+            }
+            Icon(
+                painterResource(R.drawable.ic_chevron_right),
+                contentDescription = null,
+                tint               = TextDisabled,
+                modifier           = Modifier.size(18.dp)
+            )
+        }
     }
 }

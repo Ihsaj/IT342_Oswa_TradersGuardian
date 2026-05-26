@@ -14,33 +14,32 @@ class AuthRepository(context: Context) {
 
     // ── Session storage ───────────────────────────────────────────────────────
 
-    private fun saveSession(token: String, userId: String) {
-        prefs.edit()
-            .putString("access_token", token)
-            .putString("user_id",      userId)
-            .apply()
+    private fun saveToken(token: String) {
+        prefs.edit().putString("access_token", token).apply()
     }
 
     fun getToken():   String?  = prefs.getString("access_token", null)
-    fun getUserId():  String?  = prefs.getString("user_id",      null)
     fun isLoggedIn(): Boolean  = getToken() != null
 
     fun clearToken() {
-        prefs.edit().remove("access_token").remove("user_id").apply()
+        prefs.edit().remove("access_token").apply()
     }
 
     private fun bearer() = "Bearer ${getToken()}"
-    private fun eqUserId() = "eq.${getUserId()}"
 
     // ── Login ─────────────────────────────────────────────────────────────────
 
-    suspend fun login(email: String, password: String): UiState<AuthResponse> {
+    suspend fun login(email: String, password: String): UiState<LoginResponse> {
         return try {
             val response = api.login(request = LoginRequest(email, password))
             if (response.isSuccessful) {
-                val body = response.body()!!
-                saveSession(body.accessToken, body.user.id)
-                UiState.Success(body)
+                val body = response.body()
+                if (body?.success == true && body.data != null) {
+                    saveToken(body.data.token)
+                    UiState.Success(body.data)
+                } else {
+                    UiState.Error(body?.message ?: "Login failed")
+                }
             } else {
                 UiState.Error(parseError(response.errorBody()?.string()))
             }
@@ -56,20 +55,22 @@ class AuthRepository(context: Context) {
         lastName:  String,
         email:     String,
         password:  String
-    ): UiState<AuthResponse> {
+    ): UiState<String> {
         return try {
             val request = RegisterRequest(
-                email    = email,
-                password = password,
-                data     = mapOf("first_name" to firstName, "last_name" to lastName)
+                email     = email,
+                password  = password,
+                firstname = firstName,
+                lastname  = lastName
             )
             val response = api.register(request)
             if (response.isSuccessful) {
-                val body = response.body()!!
-                if (body.accessToken.isNotBlank()) {
-                    saveSession(body.accessToken, body.user.id)
+                val body = response.body()
+                if (body?.success == true) {
+                    UiState.Success(body.message)
+                } else {
+                    UiState.Error(body?.message ?: "Registration failed")
                 }
-                UiState.Success(body)
             } else {
                 UiState.Error(parseError(response.errorBody()?.string()))
             }
@@ -81,14 +82,12 @@ class AuthRepository(context: Context) {
     // ── Account Settings ──────────────────────────────────────────────────────
 
     suspend fun getSettings(): UiState<AccountSettings> {
-        val token  = getToken()  ?: return UiState.Error("Not authenticated")
-        val userId = getUserId() ?: return UiState.Error("User ID missing")
+        val token = getToken() ?: return UiState.Error("Not authenticated")
         return try {
-            val response = api.getSettings(token = "Bearer $token", userId = "eq.$userId")
+            val response = api.getSettings(token = "Bearer $token")
             if (response.isSuccessful) {
-                val list = response.body()
-                // If no settings row yet, return safe defaults
-                UiState.Success(list?.firstOrNull() ?: AccountSettings(userId = userId))
+                val body = response.body()
+                UiState.Success(body?.data ?: AccountSettings())
             } else {
                 UiState.Error(parseError(response.errorBody()?.string()))
             }
@@ -102,20 +101,17 @@ class AuthRepository(context: Context) {
         riskPerTrade:   Double,
         dailyLossLimit: Double
     ): UiState<AccountSettings> {
-        val token  = getToken()  ?: return UiState.Error("Not authenticated")
-        val userId = getUserId() ?: return UiState.Error("User ID missing")
+        val token = getToken() ?: return UiState.Error("Not authenticated")
         return try {
             val request = AccountSettingsRequest(
-                userId         = userId,
                 accountBalance = accountBalance,
                 riskPerTrade   = riskPerTrade,
                 dailyLossLimit = dailyLossLimit
             )
-            // Upsert: insert or update if user_id already exists
-            val response = api.upsertSettings(token = "Bearer $token", request = request)
+            val response = api.updateSettings(token = "Bearer $token", request = request)
             if (response.isSuccessful) {
-                // Re-fetch to return updated data
-                getSettings()
+                val body = response.body()
+                UiState.Success(body?.data ?: AccountSettings())
             } else {
                 UiState.Error(parseError(response.errorBody()?.string()))
             }
@@ -127,12 +123,12 @@ class AuthRepository(context: Context) {
     // ── Trade Plans ───────────────────────────────────────────────────────────
 
     suspend fun getTrades(): UiState<List<TradePlan>> {
-        val token  = getToken()  ?: return UiState.Error("Not authenticated")
-        val userId = getUserId() ?: return UiState.Error("User ID missing")
+        val token = getToken() ?: return UiState.Error("Not authenticated")
         return try {
-            val response = api.getTrades(token = "Bearer $token", userId = "eq.$userId")
+            val response = api.getTrades(token = "Bearer $token")
             if (response.isSuccessful) {
-                UiState.Success(response.body() ?: emptyList())
+                val body = response.body()
+                UiState.Success(body?.data ?: emptyList())
             } else {
                 UiState.Error(parseError(response.errorBody()?.string()))
             }
@@ -146,7 +142,8 @@ class AuthRepository(context: Context) {
         return try {
             val response = api.createTrade(token = "Bearer $token", request = request)
             if (response.isSuccessful) {
-                UiState.Success(response.body()?.firstOrNull() ?: TradePlan())
+                val body = response.body()
+                UiState.Success(body?.data ?: TradePlan())
             } else {
                 UiState.Error(parseError(response.errorBody()?.string()))
             }
@@ -158,11 +155,7 @@ class AuthRepository(context: Context) {
     suspend fun approveTrade(id: Long): UiState<Unit> {
         val token = getToken() ?: return UiState.Error("Not authenticated")
         return try {
-            val response = api.patchTrade(
-                token  = "Bearer $token",
-                id     = "eq.$id",
-                body   = mapOf("status" to "APPROVED")
-            )
+            val response = api.approveTrade(token = "Bearer $token", id = id)
             if (response.isSuccessful) UiState.Success(Unit)
             else UiState.Error(parseError(response.errorBody()?.string()))
         } catch (e: Exception) {
@@ -173,10 +166,10 @@ class AuthRepository(context: Context) {
     suspend fun disapproveTrade(id: Long, reason: String): UiState<Unit> {
         val token = getToken() ?: return UiState.Error("Not authenticated")
         return try {
-            val response = api.patchTrade(
+            val response = api.disapproveTrade(
                 token = "Bearer $token",
-                id    = "eq.$id",
-                body  = mapOf("status" to "DISAPPROVED", "disapproval_reason" to reason)
+                id    = id,
+                body  = mapOf("reason" to reason)
             )
             if (response.isSuccessful) UiState.Success(Unit)
             else UiState.Error(parseError(response.errorBody()?.string()))
@@ -188,7 +181,22 @@ class AuthRepository(context: Context) {
     suspend fun deleteTrade(id: Long): UiState<Unit> {
         val token = getToken() ?: return UiState.Error("Not authenticated")
         return try {
-            val response = api.deleteTrade(token = "Bearer $token", id = "eq.$id")
+            val response = api.deleteTrade(token = "Bearer $token", id = id)
+            if (response.isSuccessful) UiState.Success(Unit)
+            else UiState.Error(parseError(response.errorBody()?.string()))
+        } catch (e: Exception) {
+            UiState.Error("Network error: ${e.localizedMessage}")
+        }
+    }
+
+    suspend fun recordOutcome(id: Long, outcome: String, profitLossAmount: Double?): UiState<Unit> {
+        val token = getToken() ?: return UiState.Error("Not authenticated")
+        return try {
+            val request = RecordOutcomeRequest(
+                outcome = outcome,
+                profitLossAmount = profitLossAmount
+            )
+            val response = api.recordOutcome(token = "Bearer $token", id = id, request = request)
             if (response.isSuccessful) UiState.Success(Unit)
             else UiState.Error(parseError(response.errorBody()?.string()))
         } catch (e: Exception) {
@@ -200,19 +208,29 @@ class AuthRepository(context: Context) {
 
     suspend fun getDashboard(): UiState<DashboardData> {
         val settingsResult = getSettings()
-        val tradesResult   = getTrades()
+        val statsResult    = getStats()
 
         if (settingsResult is UiState.Error) return UiState.Error(settingsResult.message)
 
         val settings = (settingsResult as? UiState.Success)?.data ?: AccountSettings()
-        val trades   = (tradesResult   as? UiState.Success)?.data ?: emptyList()
+        val stats    = (statsResult    as? UiState.Success)?.data ?: DashboardStats()
 
-        val stats = TradeStats(
-            totalTrades       = trades.size,
-            approvedTrades    = trades.count { it.status.uppercase() == "APPROVED" },
-            disapprovedTrades = trades.count { it.status.uppercase() == "DISAPPROVED" }
-        )
         return UiState.Success(DashboardData(settings = settings, stats = stats))
+    }
+
+    private suspend fun getStats(): UiState<DashboardStats> {
+        val token = getToken() ?: return UiState.Error("Not authenticated")
+        return try {
+            val response = api.getStats(token = "Bearer $token")
+            if (response.isSuccessful) {
+                val body = response.body()
+                UiState.Success(body?.data ?: DashboardStats())
+            } else {
+                UiState.Error(parseError(response.errorBody()?.string()))
+            }
+        } catch (e: Exception) {
+            UiState.Error("Network error: ${e.localizedMessage}")
+        }
     }
 
     // ── Error parser ──────────────────────────────────────────────────────────
@@ -221,9 +239,7 @@ class AuthRepository(context: Context) {
         if (body.isNullOrBlank()) return "An unknown error occurred"
         return try {
             val json = org.json.JSONObject(body)
-            json.optString("msg")
-                .ifBlank { json.optString("error_description") }
-                .ifBlank { json.optString("message") }
+            json.optString("message")
                 .ifBlank { json.optString("error") }
                 .ifBlank { body }
         } catch (e: Exception) { body }

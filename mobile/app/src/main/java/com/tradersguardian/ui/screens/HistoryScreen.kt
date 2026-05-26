@@ -7,6 +7,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
+import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -33,10 +34,25 @@ fun HistoryScreen(
     val tradesState   by viewModel.trades.collectAsState()
     val filter        by viewModel.filterStatus.collectAsState()
     val actionLoading by viewModel.actionLoading.collectAsState()
+    val actionError   by viewModel.actionError.collectAsState()
+
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(Unit) { viewModel.loadTrades() }
 
     var disapproveId     by remember { mutableStateOf<Long?>(null) }
     var disapproveReason by remember { mutableStateOf("") }
     var deleteId         by remember { mutableStateOf<Long?>(null) }
+    var outcomeId        by remember { mutableStateOf<Long?>(null) }
+    var lossAmount       by remember { mutableStateOf("") }
+
+    // Show snackbar for action errors
+    LaunchedEffect(actionError) {
+        actionError?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.clearActionError()
+        }
+    }
 
     // Disapprove dialog
     if (disapproveId != null) {
@@ -98,7 +114,56 @@ fun HistoryScreen(
         )
     }
 
-    Scaffold(containerColor = BgMid) { padding ->
+    // Loss amount dialog
+    if (outcomeId != null) {
+        Dialog(onDismissRequest = { outcomeId = null; lossAmount = "" }) {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+                modifier = Modifier
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(Surface)
+                    .border(1.dp, BorderColor, RoundedCornerShape(20.dp))
+                    .padding(24.dp)
+            ) {
+                Text("Record Loss", style = MaterialTheme.typography.titleMedium, color = TextPrimary)
+                Text("Enter the loss amount", style = MaterialTheme.typography.bodyMedium, color = TextMuted)
+
+                OutlinedTextField(
+                    value = lossAmount,
+                    onValueChange = { lossAmount = it },
+                    placeholder = { Text("Loss amount ($)", color = TextDisabled) },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = AccentCyan, unfocusedBorderColor = BorderColor,
+                        focusedContainerColor = InputBg, unfocusedContainerColor = InputBg,
+                        focusedTextColor = TextPrimary, unfocusedTextColor = TextPrimary
+                    ),
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    TgOutlinedButton("Cancel", onClick = { outcomeId = null; lossAmount = "" }, modifier = Modifier.weight(1f))
+                    Button(
+                        onClick = {
+                            val amount = lossAmount.toDoubleOrNull()
+                            val lossAmt = if (amount != null) -Math.abs(amount) else null
+                            viewModel.recordOutcome(outcomeId!!, "LOSS", lossAmt)
+                            outcomeId = null; lossAmount = ""
+                        },
+                        modifier = Modifier.weight(1f).height(48.dp),
+                        shape  = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = ErrorRed, contentColor = androidx.compose.ui.graphics.Color.White),
+                        enabled = lossAmount.isNotBlank()
+                    ) { Text("Save", fontWeight = FontWeight.Bold) }
+                }
+            }
+        }
+    }
+
+    Scaffold(
+        containerColor = BgMid,
+        snackbarHost = { TgSnackbarHost(snackbarHostState) }
+    ) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -133,11 +198,39 @@ fun HistoryScreen(
                         selected = filter == f,
                         onClick  = { viewModel.filterStatus.value = f },
                         text = {
-                            Text(
-                                f.lowercase().replaceFirstChar { it.uppercase() },
-                                style = MaterialTheme.typography.labelLarge,
-                                color = if (filter == f) AccentCyan else TextMuted
-                            )
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    f.lowercase().replaceFirstChar { it.uppercase() },
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = if (filter == f) AccentCyan else TextMuted
+                                )
+                                when (val state = tradesState) {
+                                    is UiState.Success -> {
+                                        val count = when (f) {
+                                            "ALL" -> state.data.count { it.status.uppercase() != "PENDING" }
+                                            else -> state.data.count { it.status.uppercase() == f }
+                                        }
+                                        if (count > 0) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .clip(RoundedCornerShape(10.dp))
+                                                    .background(if (filter == f) AccentCyan.copy(alpha = 0.2f) else Surface2)
+                                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                                            ) {
+                                                Text(
+                                                    count.toString(),
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    color = if (filter == f) AccentCyan else TextMuted
+                                                )
+                                            }
+                                        }
+                                    }
+                                    else -> Unit
+                                }
+                            }
                         }
                     )
                 }
@@ -161,7 +254,10 @@ fun HistoryScreen(
                 }
                 is UiState.Success -> {
                     val all      = state.data
-                    val filtered = if (filter == "ALL") all else all.filter { it.status.uppercase() == filter }
+                    val filtered = when (filter) {
+                        "ALL" -> all.filter { it.status.uppercase() != "PENDING" }
+                        else -> all.filter { it.status.uppercase() == filter }
+                    }
 
                     if (filtered.isEmpty()) {
                         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -179,7 +275,9 @@ fun HistoryScreen(
                                     actionLoading = actionLoading,
                                     onApprove     = { viewModel.approve(trade.id) },
                                     onDisapprove  = { disapproveId = trade.id },
-                                    onDelete      = { deleteId = trade.id }
+                                    onDelete      = { deleteId = trade.id },
+                                    onWinClick    = { viewModel.recordOutcome(trade.id, "WIN", null) },
+                                    onLossClick   = { outcomeId = trade.id; lossAmount = "" }
                                 )
                             }
                             item { Spacer(Modifier.height(16.dp)) }
@@ -198,7 +296,9 @@ private fun TradeCard(
     actionLoading: Long?,
     onApprove: () -> Unit,
     onDisapprove: () -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    onWinClick: () -> Unit = {},
+    onLossClick: () -> Unit = {}
 ) {
     val isLoading = actionLoading == trade.id
     val dateStr = try {
@@ -229,7 +329,29 @@ private fun TradeCard(
                 modifier = Modifier.weight(1f)
             )
             TradeTypeChip(trade.tradeType)
-            StatusChip(trade.status)
+            if (trade.outcome != null) {
+                val outcomeLabel = when {
+                    trade.outcome == "LOSS" && trade.profitLossAmount != null ->
+                        "Loss: $${"%.2f".format(Math.abs(trade.profitLossAmount))}"
+                    else -> trade.outcome.lowercase().replaceFirstChar { it.uppercase() }
+                }
+                val outcomeBg = if (trade.outcome == "WIN") SuccessBg else ErrorBg
+                val outcomeFg = if (trade.outcome == "WIN") SuccessGreen else ErrorRed
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(outcomeBg)
+                        .padding(horizontal = 10.dp, vertical = 4.dp)
+                ) {
+                    Text(
+                        outcomeLabel,
+                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                        color = outcomeFg
+                    )
+                }
+            } else {
+                StatusChip(trade.status)
+            }
         }
 
         HorizontalDivider(color = BorderColor, thickness = 0.5.dp)
@@ -261,6 +383,29 @@ private fun TradeCard(
             )
         }
 
+        if (trade.status.uppercase() == "DISAPPROVED" && !trade.disapprovalReason.isNullOrBlank()) {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(ErrorBg)
+                    .border(1.dp, ErrorRed.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
+                    .padding(10.dp)
+            ) {
+                Text(
+                    "Rejection Reason",
+                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                    color = ErrorRed
+                )
+                Text(
+                    trade.disapprovalReason,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = ErrorRed.copy(alpha = 0.85f)
+                )
+            }
+        }
+
         // Actions
         if (isLoading) {
             Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
@@ -284,6 +429,22 @@ private fun TradeCard(
                         colors = ButtonDefaults.buttonColors(containerColor = ErrorBg, contentColor = ErrorRed),
                         elevation = ButtonDefaults.buttonElevation(0.dp)
                     ) { Text("Reject", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold) }
+                } else if (trade.status.uppercase() == "APPROVED" && trade.outcome == null) {
+                    Button(
+                        onClick = onWinClick,
+                        modifier = Modifier.weight(1f).height(38.dp),
+                        shape  = RoundedCornerShape(8.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = SuccessBg, contentColor = SuccessGreen),
+                        elevation = ButtonDefaults.buttonElevation(0.dp)
+                    ) { Text("Win", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold) }
+
+                    Button(
+                        onClick = onLossClick,
+                        modifier = Modifier.weight(1f).height(38.dp),
+                        shape  = RoundedCornerShape(8.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = ErrorBg, contentColor = ErrorRed),
+                        elevation = ButtonDefaults.buttonElevation(0.dp)
+                    ) { Text("Loss", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold) }
                 }
                 OutlinedButton(
                     onClick = onDelete,

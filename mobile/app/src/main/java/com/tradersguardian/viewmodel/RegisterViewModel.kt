@@ -3,7 +3,6 @@ package com.tradersguardian.viewmodel
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.tradersguardian.data.model.AuthResponse
 import com.tradersguardian.data.model.UiState
 import com.tradersguardian.data.repository.AuthRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -14,8 +13,8 @@ class RegisterViewModel(application: Application) : AndroidViewModel(application
 
     private val repository = AuthRepository(application)
 
-    private val _uiState = MutableStateFlow<UiState<AuthResponse>>(UiState.Idle)
-    val uiState: StateFlow<UiState<AuthResponse>> = _uiState
+    private val _uiState = MutableStateFlow<UiState<String>>(UiState.Idle)
+    val uiState: StateFlow<UiState<String>> = _uiState
 
     val firstName   = MutableStateFlow("")
     val lastName    = MutableStateFlow("")

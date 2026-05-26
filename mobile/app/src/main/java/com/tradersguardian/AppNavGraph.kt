@@ -32,10 +32,10 @@ private data class NavItem(
 )
 
 private val bottomNavItems = listOf(
-    NavItem(Routes.DASHBOARD, "Dashboard", R.drawable.ic_grid),
-    NavItem(Routes.PLAN,      "Plan",      R.drawable.ic_trending_up),
-    NavItem(Routes.HISTORY,   "History",   R.drawable.ic_clock),
-    NavItem(Routes.SETTINGS,  "Settings",  R.drawable.ic_settings),
+    NavItem(Routes.DASHBOARD, "Home",    R.drawable.ic_grid),
+    NavItem(Routes.PLAN,      "Plan",    R.drawable.ic_trending_up),
+    NavItem(Routes.HISTORY,   "History", R.drawable.ic_clock),
+    NavItem(Routes.SETTINGS,  "Settings",R.drawable.ic_settings),
 )
 
 // ── Auth graph (no bottom bar) ────────────────────────────────────────────────
@@ -49,7 +49,7 @@ fun AppNavGraph(startDestination: String) {
     val showBottomBar = currentRoute in bottomNavItems.map { it.route }
 
     Scaffold(
-        containerColor = BgDark,
+        containerColor = BgMid,
         bottomBar = {
             if (showBottomBar) {
                 TgBottomBar(
@@ -103,11 +103,6 @@ fun AppNavGraph(startDestination: String) {
                             popUpTo(navController.graph.findStartDestination().id) { saveState = true }
                             launchSingleTop = true; restoreState = true
                         }
-                    },
-                    onLogout = {
-                        navController.navigate(Routes.LOGIN) {
-                            popUpTo(0) { inclusive = true }
-                        }
                     }
                 )
             }
@@ -121,7 +116,13 @@ fun AppNavGraph(startDestination: String) {
             }
 
             composable(Routes.SETTINGS) {
-                SettingsScreen()
+                SettingsScreen(
+                    onLogout = {
+                        navController.navigate(Routes.LOGIN) {
+                            popUpTo(0) { inclusive = true }
+                        }
+                    }
+                )
             }
         }
     }
