@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!--
+        Allow cleartext (HTTP) to the Android emulator's loopback address
+        so the app can reach your local Spring Boot backend during development.
+        Remove or restrict this block before releasing to production.
+    -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">10.0.2.2</domain>
+        <!-- Physical device on same LAN — add your dev machine's IP here -->
+        <!-- <domain includeSubdomains="false">192.168.1.x</domain> -->
+    </domain-config>
+
+    <!-- All other traffic (e.g. production HTTPS) follows default policy -->
+    <base-config cleartextTrafficPermitted="false" />
+</network-security-config>

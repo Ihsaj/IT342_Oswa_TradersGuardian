@@ -60,7 +60,4 @@ dependencies {
     implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
     implementation(libs.kotlinx.serialization.json)
-    implementation("io.ktor:ktor-client-android:2.3.7")
-    implementation("io.github.jan-tennert.supabase:postgrest-kt")
-    implementation(platform("io.github.jan-tennert.supabase:bom:2.0.0"))
 }

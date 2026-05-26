@@ -43,46 +43,44 @@ fun RegisterScreen(
     onNavigateToLogin: () -> Unit,
     viewModel: RegisterViewModel = viewModel()
 ) {
-    val uiState        by viewModel.uiState.collectAsState()
-    val firstName      by viewModel.firstName.collectAsState()
-    val lastName       by viewModel.lastName.collectAsState()
-    val email          by viewModel.email.collectAsState()
-    val username       by viewModel.username.collectAsState()
-    val password       by viewModel.password.collectAsState()
-    val confirmPw      by viewModel.confirmPw.collectAsState()
-    val termsAgreed    by viewModel.termsAgreed.collectAsState()
-    val strength       by viewModel.passwordStrength.collectAsState()
+    val uiState     by viewModel.uiState.collectAsState()
+    val firstName   by viewModel.firstName.collectAsState()
+    val lastName    by viewModel.lastName.collectAsState()
+    val email       by viewModel.email.collectAsState()
+    val password    by viewModel.password.collectAsState()
+    val confirmPw   by viewModel.confirmPw.collectAsState()
+    val termsAgreed by viewModel.termsAgreed.collectAsState()
+    val strength    by viewModel.passwordStrength.collectAsState()
 
-    val fnErr     by viewModel.firstNameError.collectAsState()
-    val lnErr     by viewModel.lastNameError.collectAsState()
-    val emailErr  by viewModel.emailError.collectAsState()
-    val userErr   by viewModel.usernameError.collectAsState()
-    val pwErr     by viewModel.passwordError.collectAsState()
-    val cpwErr    by viewModel.confirmPwError.collectAsState()
-    val termsErr  by viewModel.termsError.collectAsState()
+    val fnErr  by viewModel.firstNameError.collectAsState()
+    val lnErr  by viewModel.lastNameError.collectAsState()
+    val emErr  by viewModel.emailError.collectAsState()
+    val pwErr  by viewModel.passwordError.collectAsState()
+    val cpErr  by viewModel.confirmPwError.collectAsState()
+    val tErr   by viewModel.termsError.collectAsState()
 
-    val focusManager      = LocalFocusManager.current
-    val snackbarHostState = remember { SnackbarHostState() }
-    var showSuccess       by remember { mutableStateOf(false) }
+    val focusManager = LocalFocusManager.current
+    val snackbar     = remember { SnackbarHostState() }
+    var showSuccess  by remember { mutableStateOf(false) }
 
     LaunchedEffect(uiState) {
         when (val s = uiState) {
             is UiState.Success -> showSuccess = true
-            is UiState.Error   -> snackbarHostState.showSnackbar(s.message)
+            is UiState.Error   -> snackbar.showSnackbar(s.message)
             else               -> Unit
         }
     }
 
-    // ── Success dialog ─────────────────────────────────────────────────────
+    // ── Success overlay ───────────────────────────────────────────────────────
     if (showSuccess) {
         Dialog(onDismissRequest = {}) {
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(16.dp),
                 modifier = Modifier
-                    .clip(RoundedCornerShape(16.dp))
+                    .clip(RoundedCornerShape(20.dp))
                     .background(Surface)
-                    .border(1.dp, BorderColor, RoundedCornerShape(16.dp))
+                    .border(1.dp, BorderColor, RoundedCornerShape(20.dp))
                     .padding(32.dp)
             ) {
                 Box(
@@ -90,34 +88,27 @@ fun RegisterScreen(
                     modifier = Modifier
                         .size(72.dp)
                         .clip(CircleShape)
-                        .background(SuccessGreen.copy(alpha = 0.12f))
+                        .background(SuccessBg)
                         .border(2.dp, SuccessGreen, CircleShape)
                 ) {
-                    Text("✓", color = SuccessGreen, fontSize = 28.sp)
+                    Text("✓", color = SuccessGreen, fontSize = 28.sp, fontWeight = FontWeight.Bold)
                 }
                 Text("Account Created!", style = MaterialTheme.typography.titleLarge, color = TextPrimary)
-                Text("Welcome to Trader's Guardian. You're all set.", color = TextMuted,
-                    style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center)
+                Text(
+                    "Welcome to Trader's Guardian.\nYou're ready to trade smarter.",
+                    color = TextMuted,
+                    style = MaterialTheme.typography.bodyMedium,
+                    textAlign = TextAlign.Center
+                )
                 TgButton(text = "Go to Login", onClick = onRegisterSuccess)
             }
         }
     }
 
     Scaffold(
-        snackbarHost = {
-            SnackbarHost(snackbarHostState) { data ->
-                Snackbar(
-                    snackbarData = data,
-                    containerColor = Surface,
-                    contentColor = TextPrimary,
-                    actionColor = AccentCyan,
-                    shape = RoundedCornerShape(8.dp)
-                )
-            }
-        },
-        containerColor = BgDark
+        containerColor = BgDark,
+        snackbarHost   = { TgSnackbarHost(snackbar) }
     ) { padding ->
-
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -126,11 +117,11 @@ fun RegisterScreen(
                     drawCircle(
                         brush = Brush.radialGradient(
                             colors = listOf(AccentCyan.copy(alpha = 0.07f), Color.Transparent),
-                            center = Offset(size.width / 2, size.height * 0.3f),
-                            radius = size.width * 0.8f
+                            center = Offset(size.width / 2f, size.height * 0.25f),
+                            radius = size.width * 0.85f
                         ),
-                        radius = size.width * 0.8f,
-                        center = Offset(size.width / 2, size.height * 0.3f)
+                        radius = size.width * 0.85f,
+                        center = Offset(size.width / 2f, size.height * 0.25f)
                     )
                 }
         ) {
@@ -139,13 +130,12 @@ fun RegisterScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 24.dp, vertical = 48.dp),
+                    .padding(horizontal = 24.dp, vertical = 52.dp),
                 verticalArrangement = Arrangement.Center
             ) {
-
-                // ── Brand ──────────────────────────────────────────────────
-                LogoBadge(size = 72, cornerRadius = 18)
-                Spacer(Modifier.height(16.dp))
+                // Brand
+                LogoBadge(size = 68, cornerRadius = 18)
+                Spacer(Modifier.height(14.dp))
                 Text(
                     "Trader's Guardian",
                     style = MaterialTheme.typography.headlineLarge.copy(letterSpacing = (-0.5).sp),
@@ -153,11 +143,10 @@ fun RegisterScreen(
                 )
                 Spacer(Modifier.height(4.dp))
                 Text("Create your trading account", style = MaterialTheme.typography.bodyMedium, color = TextMuted)
-                Spacer(Modifier.height(32.dp))
+                Spacer(Modifier.height(28.dp))
 
-                // ── Card ───────────────────────────────────────────────────
+                // Card
                 TgCard {
-
                     // First + Last name row
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         TgTextField(
@@ -181,48 +170,32 @@ fun RegisterScreen(
                             modifier = Modifier.weight(1f)
                         )
                     }
-
-                    Spacer(Modifier.height(16.dp))
+                    Spacer(Modifier.height(14.dp))
 
                     TgTextField(
                         value = email,
                         onValueChange = { viewModel.email.value = it },
                         label = "Email",
                         placeholder = "trader@example.com",
-                        errorMessage = emailErr,
+                        errorMessage = emErr,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Next),
                         keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) })
                     )
-
-                    Spacer(Modifier.height(16.dp))
-
-                    TgTextField(
-                        value = username,
-                        onValueChange = { viewModel.username.value = it },
-                        label = "Username",
-                        placeholder = "traderpro99",
-                        errorMessage = userErr,
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-                        keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) })
-                    )
-
-                    Spacer(Modifier.height(16.dp))
+                    Spacer(Modifier.height(14.dp))
 
                     TgTextField(
                         value = password,
                         onValueChange = { viewModel.updatePassword(it) },
                         label = "Password",
-                        placeholder = "••••••••",
+                        placeholder = "Min. 8 characters",
                         isPassword = true,
                         errorMessage = pwErr,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Next),
                         keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) })
                     )
-
                     Spacer(Modifier.height(8.dp))
                     PasswordStrengthBar(strength = strength)
-
-                    Spacer(Modifier.height(16.dp))
+                    Spacer(Modifier.height(14.dp))
 
                     TgTextField(
                         value = confirmPw,
@@ -230,11 +203,10 @@ fun RegisterScreen(
                         label = "Confirm Password",
                         placeholder = "••••••••",
                         isPassword = true,
-                        errorMessage = cpwErr,
+                        errorMessage = cpErr,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
                         keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() })
                     )
-
                     Spacer(Modifier.height(16.dp))
 
                     // Terms checkbox
@@ -246,7 +218,7 @@ fun RegisterScreen(
                             checked = termsAgreed,
                             onCheckedChange = { viewModel.termsAgreed.value = it },
                             colors = CheckboxDefaults.colors(
-                                checkedColor = AccentCyan,
+                                checkedColor   = AccentCyan,
                                 uncheckedColor = BorderColor,
                                 checkmarkColor = BgDark
                             ),
@@ -264,35 +236,31 @@ fun RegisterScreen(
                             modifier = Modifier.padding(top = 2.dp)
                         )
                     }
-                    if (termsErr != null) {
-                        Text(termsErr!!, color = ErrorRed, style = MaterialTheme.typography.bodySmall,
+                    if (tErr != null) {
+                        Text(tErr!!, color = ErrorRed, style = MaterialTheme.typography.bodySmall,
                             modifier = Modifier.padding(top = 4.dp, start = 4.dp))
                     }
-
                     Spacer(Modifier.height(20.dp))
 
                     TgButton(
-                        text = "Create Account",
-                        onClick = { focusManager.clearFocus(); viewModel.register() },
+                        text      = "Create Account",
+                        onClick   = { focusManager.clearFocus(); viewModel.register() },
                         isLoading = uiState is UiState.Loading
                     )
-
-                    Spacer(Modifier.height(20.dp))
+                    Spacer(Modifier.height(18.dp))
                     TgDivider()
                     Spacer(Modifier.height(12.dp))
 
-                    TextButton(
-                        onClick = onNavigateToLogin,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
+                    TextButton(onClick = onNavigateToLogin, modifier = Modifier.fillMaxWidth()) {
                         Text(
                             buildAnnotatedString {
                                 withStyle(SpanStyle(color = TextMuted)) { append("Already have an account? ") }
                                 withStyle(SpanStyle(color = AccentCyan, fontWeight = FontWeight.SemiBold)) {
-                                    append("Sign in here")
+                                    append("Sign in")
                                 }
                             },
-                            style = MaterialTheme.typography.bodyMedium
+                            style = MaterialTheme.typography.bodyMedium,
+                            textAlign = TextAlign.Center
                         )
                     }
                 }

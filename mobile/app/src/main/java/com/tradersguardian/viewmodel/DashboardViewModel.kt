@@ -3,8 +3,7 @@ package com.tradersguardian.viewmodel
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.tradersguardian.data.model.DashboardData
-import com.tradersguardian.data.model.UiState
+import com.tradersguardian.data.model.*
 import com.tradersguardian.data.repository.AuthRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -17,8 +16,6 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
     private val _dashboardState = MutableStateFlow<UiState<DashboardData>>(UiState.Loading)
     val dashboardState: StateFlow<UiState<DashboardData>> = _dashboardState
 
-    val showLogoutDialog = MutableStateFlow(false)
-
     init { loadDashboard() }
 
     fun loadDashboard() {
@@ -26,11 +23,5 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
             _dashboardState.value = UiState.Loading
             _dashboardState.value = repository.getDashboard()
         }
-    }
-
-    fun logout(onLoggedOut: () -> Unit) {
-        repository.clearToken()
-        showLogoutDialog.value = false
-        onLoggedOut()
     }
 }

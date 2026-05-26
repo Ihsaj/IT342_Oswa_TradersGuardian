@@ -1,0 +1,4 @@
+# Copy this file to local.properties and set the path to your Android SDK.
+# This file is excluded from version control by mobile/.gitignore.
+
+sdk.dir=C:\Users\<YOUR_USER>\AppData\Local\Android\Sdk
